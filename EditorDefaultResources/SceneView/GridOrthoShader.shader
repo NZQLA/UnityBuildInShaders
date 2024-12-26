@@ -3,7 +3,7 @@
 Shader "Hidden/SceneView grid ortho" {
 SubShader {
     Tags { "ForceSupported" = "True" "Queue" = "Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
-    Blend SrcAlpha OneMinusSrcAlpha
+    Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
     ZWrite Off Cull Off Fog { Mode Off }
     Pass {
         CGPROGRAM
@@ -33,7 +33,7 @@ SubShader {
             return o;
         }
 
-        float4 frag (fragmentInput i) : COLOR {
+        float4 frag (fragmentInput i) : SV_Target {
             float r = saturate (i.texcoord0.x - 0.1);
             return float4 (i.color.r, i.color.g, i.color.b, r * i.color.a);
         }

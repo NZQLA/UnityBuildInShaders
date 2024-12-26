@@ -9,7 +9,7 @@ Shader "Nature/Terrain/Diffuse" {
     }
 
     CGINCLUDE
-        #pragma surface surf Lambert vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer addshadow fullforwardshadows
+        #pragma surface surf Lambert vertex:SplatmapVert finalcolor:SplatmapFinalColor finalgbuffer:SplatmapFinalGBuffer addshadow fullforwardshadows
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
         #pragma multi_compile_fog
         #include "TerrainSplatmapCommon.cginc"
@@ -29,6 +29,7 @@ Shader "Nature/Terrain/Diffuse" {
         Tags {
             "Queue" = "Geometry-99"
             "RenderType" = "Opaque"
+            "TerrainCompatible" = "True"
         }
         // TODO: Seems like "#pragma target 3.0 _NORMALMAP" can't fallback correctly on less capable devices?
         // Use two sub-shaders to simulate different features for different targets and still fallback correctly.
