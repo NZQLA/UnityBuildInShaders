@@ -12,7 +12,7 @@
 
 // If none of the keywords are defined, assume directional?
 #if !defined(POINT) && !defined(SPOT) && !defined(DIRECTIONAL) && !defined(POINT_COOKIE) && !defined(DIRECTIONAL_COOKIE)
-    #define DIRECTIONAL 1
+    #define DIRECTIONAL
 #endif
 
 // ---- Screen space direction light shadows helpers (any version)
@@ -21,7 +21,6 @@
     #if defined(UNITY_NO_SCREENSPACE_SHADOWS)
         UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
         #define TRANSFER_SHADOW(a) a._ShadowCoord = mul( unity_WorldToShadow[0], mul( unity_ObjectToWorld, v.vertex ) );
-        #define TRANSFER_SHADOW_WPOS(a, wpos) a._ShadowCoord = mul( unity_WorldToShadow[0], float4(wpos.xyz, 1.0f) );
         inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)
         {
             #if defined(SHADOWS_NATIVE)
@@ -41,7 +40,6 @@
     #else // UNITY_NO_SCREENSPACE_SHADOWS
         UNITY_DECLARE_SCREENSPACE_SHADOWMAP(_ShadowMapTexture);
         #define TRANSFER_SHADOW(a) a._ShadowCoord = ComputeScreenPos(a.pos);
-        #define TRANSFER_SHADOW_WPOS(a, wpos) a._ShadowCoord = ComputeScreenPos(a.pos);
         inline fixed unitySampleShadow (unityShadowCoord4 shadowCoord)
         {
             fixed shadow = UNITY_SAMPLE_SCREEN_SHADOW(_ShadowMapTexture, shadowCoord);
@@ -240,7 +238,6 @@ unityShadowCoord4x4 unity_WorldToLight;
 #if defined (SHADOWS_DEPTH) && defined (SPOT)
 #define SHADOW_COORDS(idx1) unityShadowCoord4 _ShadowCoord : TEXCOORD##idx1;
 #define TRANSFER_SHADOW(a) a._ShadowCoord = mul (unity_WorldToShadow[0], mul(unity_ObjectToWorld,v.vertex));
-#define TRANSFER_SHADOW_WPOS(a, wpos) a._ShadowCoord = mul (unity_WorldToShadow[0], float4(wpos.xyz, 1.0f));
 #define SHADOW_ATTENUATION(a) UnitySampleShadowmap(a._ShadowCoord)
 #endif
 
@@ -248,7 +245,6 @@ unityShadowCoord4x4 unity_WorldToLight;
 #if defined (SHADOWS_CUBE)
 #define SHADOW_COORDS(idx1) unityShadowCoord3 _ShadowCoord : TEXCOORD##idx1;
 #define TRANSFER_SHADOW(a) a._ShadowCoord.xyz = mul(unity_ObjectToWorld, v.vertex).xyz - _LightPositionRange.xyz;
-#define TRANSFER_SHADOW_WPOS(a, wpos) a._ShadowCoord.xyz = wpos.xyz - _LightPositionRange.xyz;
 #define SHADOW_ATTENUATION(a) UnitySampleShadowmap(a._ShadowCoord)
 #define READ_SHADOW_COORDS(a) unityShadowCoord4(a._ShadowCoord.xyz, 1.0)
 #endif
@@ -257,7 +253,6 @@ unityShadowCoord4x4 unity_WorldToLight;
 #if !defined (SHADOWS_SCREEN) && !defined (SHADOWS_DEPTH) && !defined (SHADOWS_CUBE)
 #define SHADOW_COORDS(idx1)
 #define TRANSFER_SHADOW(a)
-#define TRANSFER_SHADOW_WPOS(a, wpos)
 #define SHADOW_ATTENUATION(a) 1.0
 #define READ_SHADOW_COORDS(a) 0
 #else

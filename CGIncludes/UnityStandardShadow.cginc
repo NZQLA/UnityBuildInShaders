@@ -97,12 +97,6 @@ struct VertexInput
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
-struct VertexOutput
-{
-    UNITY_POSITION(pos);
-    UNITY_VERTEX_INPUT_INSTANCE_ID
-};
-
 #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
 struct VertexOutputShadowCaster
 {
@@ -130,7 +124,7 @@ struct VertexOutputStereoShadowCaster
 
 
 void vertShadowCaster (VertexInput v
-    , out VertexOutput output
+    , out float4 opos : SV_POSITION
     #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
     , out VertexOutputShadowCaster o
     #endif
@@ -140,12 +134,10 @@ void vertShadowCaster (VertexInput v
 )
 {
     UNITY_SETUP_INSTANCE_ID(v);
-    UNITY_TRANSFER_INSTANCE_ID(v, output);
-
     #ifdef UNITY_STANDARD_USE_STEREO_SHADOW_OUTPUT_STRUCT
         UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(os);
     #endif
-    TRANSFER_SHADOW_CASTER_NOPOS(o, output.pos)
+    TRANSFER_SHADOW_CASTER_NOPOS(o,opos)
     #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
         o.tex = TRANSFORM_TEX(v.uv0, _MainTex);
 
@@ -156,14 +148,12 @@ void vertShadowCaster (VertexInput v
     #endif
 }
 
-half4 fragShadowCaster (VertexOutput input
+half4 fragShadowCaster (UNITY_POSITION(vpos)
 #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
     , VertexOutputShadowCaster i
 #endif
 ) : SV_Target
 {
-    UNITY_SETUP_INSTANCE_ID(input);
-
     #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
         #if defined(_PARALLAXMAP) && (SHADER_TARGET >= 30)
             half3 viewDirForParallax = normalize(i.viewDirForParallax);
@@ -193,7 +183,7 @@ half4 fragShadowCaster (VertexOutput input
                     #define _LOD_FADE_ON_ALPHA
                     alpha *= unity_LODFade.y;
                 #endif
-                half alphaRef = tex3D(_DitherMaskLOD, float3(input.pos.xy*0.25,alpha*0.9375)).a;
+                half alphaRef = tex3D(_DitherMaskLOD, float3(vpos.xy*0.25,alpha*0.9375)).a;
                 clip (alphaRef - 0.01);
             #else
                 clip (alpha - _Cutoff);
@@ -205,7 +195,7 @@ half4 fragShadowCaster (VertexOutput input
         #ifdef _LOD_FADE_ON_ALPHA
             #undef _LOD_FADE_ON_ALPHA
         #else
-            UnityApplyDitherCrossFade(input.pos.xy);
+            UnityApplyDitherCrossFade(vpos.xy);
         #endif
     #endif
 

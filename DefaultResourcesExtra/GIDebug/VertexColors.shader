@@ -28,7 +28,7 @@ Shader "Hidden/GIDebug/VertexColors" {
                 return o;
             }
 
-            float4 frag_surf (v2f_surf IN) : SV_Target
+            float4 frag_surf (v2f_surf IN) : COLOR
             {
                 return IN.color;
             }
