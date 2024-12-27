@@ -8,7 +8,7 @@ Properties
 }
 SubShader {
     Tags { "ForceSupported" = "True" "Queue" = "Transparent" }
-    Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
+    Blend SrcAlpha OneMinusSrcAlpha
     ZWrite Off Cull Off Fog { Mode Off }
     ZTest [_HandleZTest]
     BindChannels {

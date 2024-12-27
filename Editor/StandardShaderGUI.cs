@@ -249,7 +249,7 @@ namespace UnityEditor
 
         bool BlendModePopup()
         {
-            MaterialEditor.BeginProperty(blendMode);
+            EditorGUI.showMixedValue = blendMode.hasMixedValue;
             var mode = (BlendMode)blendMode.floatValue;
 
             EditorGUI.BeginChangeCheck();
@@ -261,7 +261,7 @@ namespace UnityEditor
                 blendMode.floatValue = (float)mode;
             }
 
-            MaterialEditor.EndProperty();
+            EditorGUI.showMixedValue = false;
 
             return result;
         }
@@ -297,13 +297,6 @@ namespace UnityEditor
 
                 // Texture and HDR color controls
                 m_MaterialEditor.TexturePropertyWithHDRColor(Styles.emissionText, emissionMap, emissionColorForRendering, false);
-
-                if (material.globalIlluminationFlags.HasFlag(MaterialGlobalIlluminationFlags.EmissiveIsBlack))
-                {
-                    material.GetPropertyState(MaterialSerializedProperty.LightmapFlags, out _, out _, out bool lockedByAncestor);
-                    if (lockedByAncestor)
-                        EditorGUILayout.HelpBox("Emissive lighting is locked to black by a parent Material. Changing the emissive color will have no effect.", MessageType.Warning);
-                }
 
                 // If texture was assigned and color was black set color to white
                 float brightness = emissionColorForRendering.colorValue.maxColorComponent;

@@ -12,7 +12,7 @@ Shader "Hidden/Physics/DebugVisWireCapsule" {
         Pass {
             Tags { "RenderType" = "Transparent" "Queue" = "Transparent" }
             Lighting Off
-            Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
+            Blend SrcAlpha OneMinusSrcAlpha
             ZTest LEqual ZWrite Off
             Offset -1, -20
 

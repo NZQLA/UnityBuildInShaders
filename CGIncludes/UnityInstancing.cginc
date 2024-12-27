@@ -34,7 +34,7 @@
     #define UNITY_FORCE_MAX_INSTANCE_COUNT 1
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN)
     #define UNITY_SUPPORT_STEREO_INSTANCING
 #endif
 
@@ -62,7 +62,7 @@
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
-#if defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN)
     // These platforms have constant buffers disabled normally, but not here (see CBUFFER_START/CBUFFER_END in HLSLSupport.cginc).
     #define UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(name)  cbuffer name {
     #define UNITY_INSTANCING_CBUFFER_SCOPE_END          }
@@ -81,12 +81,12 @@
     static uint unity_InstanceID;
 
     // Don't make UnityDrawCallInfo an actual CB on GL
-    #if (!defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)) || defined(SHADER_API_SWITCH)
+    #if !defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)
         UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityDrawCallInfo)
     #endif
             int unity_BaseInstanceID;
             int unity_InstanceCount;
-    #if (!defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)) || defined(SHADER_API_SWITCH)
+    #if !defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)
         UNITY_INSTANCING_CBUFFER_SCOPE_END
     #endif
 
@@ -232,7 +232,7 @@
         #endif
     #endif
 
-    #define UNITY_INSTANCING_BUFFER_START(buf)      UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityInstancing_##buf) struct  _type_##buf {
+    #define UNITY_INSTANCING_BUFFER_START(buf)      UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityInstancing_##buf) struct {
     #define UNITY_INSTANCING_BUFFER_END(arr)        } arr##Array[UNITY_INSTANCED_ARRAY_SIZE]; UNITY_INSTANCING_CBUFFER_SCOPE_END
     #define UNITY_DEFINE_INSTANCED_PROP(type, var)  type var;
     #define UNITY_ACCESS_INSTANCED_PROP(arr, var)   arr##Array[unity_InstanceID].var

@@ -10,7 +10,7 @@ Shader "Hidden/Handles Dotted Lines"{
     {
         Tags { "ForceSupported" = "True" }
         Lighting Off
-        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha
         Cull Off
         ZWrite Off
         ZTest [_HandleZTest]

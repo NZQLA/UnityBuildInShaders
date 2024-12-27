@@ -3,7 +3,7 @@
 #ifndef UNITY_DEFERRED_LIBRARY_INCLUDED
 #define UNITY_DEFERRED_LIBRARY_INCLUDED
 
-// Deferred shading helpers
+// Deferred lighting / shading helpers
 
 
 // --------------------------------------------------------

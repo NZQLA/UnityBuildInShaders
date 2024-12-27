@@ -66,9 +66,7 @@ UNITY_INSTANCING_BUFFER_END(Terrain)
     void ClipHoles(float2 uv)
     {
         float hole = tex2D(_TerrainHolesTexture, uv).r;
-        // Fixes bug where compression is enabled and 0 isn't actually 0 but low like 1/2047. (UUM-61913)
-        float epsilon = 0.0005f;
-        clip(hole < epsilon ? -1 : 1);
+        clip(hole == 0.0f ? -1 : 1);
     }
 #endif
 
@@ -223,6 +221,11 @@ void SplatmapFinalColor(Input IN, TERRAIN_SURFACE_OUTPUT o, inout fixed4 color)
     #else
         UNITY_APPLY_FOG(IN.fogCoord, color);
     #endif
+}
+
+void SplatmapFinalPrepass(Input IN, TERRAIN_SURFACE_OUTPUT o, inout fixed4 normalSpec)
+{
+    normalSpec *= o.Alpha;
 }
 
 void SplatmapFinalGBuffer(Input IN, TERRAIN_SURFACE_OUTPUT o, inout half4 outGBuffer0, inout half4 outGBuffer1, inout half4 outGBuffer2, inout half4 emission)
