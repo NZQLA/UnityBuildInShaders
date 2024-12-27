@@ -11,6 +11,7 @@
 #define _DISTORTION_ON 1
 #endif
 
+#include "HLSLSupport.cginc"
 #include "UnityPBSLighting.cginc"
 #include "UnityStandardParticleInstancing.cginc"
 
@@ -126,6 +127,7 @@ UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 float4 _SoftParticleFadeParams;
 float4 _CameraFadeParams;
 half _Cutoff;
+int _DstBlend;
 
 #define SOFT_PARTICLE_NEAR_FADE _SoftParticleFadeParams.x
 #define SOFT_PARTICLE_INV_FADE_DISTANCE _SoftParticleFadeParams.y
@@ -133,10 +135,21 @@ half _Cutoff;
 #define CAMERA_NEAR_FADE _CameraFadeParams.x
 #define CAMERA_INV_FADE_DISTANCE _CameraFadeParams.y
 
+#if (defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)) && !SHADER_TARGET_SURFACE_ANALYSIS
+    #define SampleGrabPassTexture(tex, t) UNITY_SAMPLE_SCREENSPACE_TEXTURE(tex, t.xy / t.w)
+#else
+    #define SampleGrabPassTexture(tex, t) tex2Dproj(tex, t)
+#endif
+
+
 #if _DISTORTION_ON
-sampler2D _GrabTexture;
-half _DistortionStrengthScaled;
-half _DistortionBlend;
+    #if SHADER_TARGET_SURFACE_ANALYSIS
+        sampler2D _GrabTexture;
+    #else
+        UNITY_DECLARE_SCREENSPACE_TEXTURE(_GrabTexture);
+    #endif
+    half _DistortionStrengthScaled;
+    half _DistortionBlend;
 #endif
 
 #if defined (_COLORADDSUBDIFF_ON)
@@ -266,8 +279,8 @@ half3 HSVtoRGB(half3 arg1)
 #define fragDistortion(i) \
     float4 grabPosUV = UNITY_PROJ_COORD(i.grabPassPosition); \
     grabPosUV.xy += normal.xy * _DistortionStrengthScaled * albedo.a; \
-    half3 grabPass = tex2Dproj(_GrabTexture, grabPosUV).rgb; \
-    albedo.rgb = lerp(grabPass, albedo.rgb, saturate(albedo.a - _DistortionBlend));
+half3 grabPass = SampleGrabPassTexture(_GrabTexture, grabPosUV).rgb; \
+albedo.rgb = lerp(grabPass, albedo.rgb, saturate(albedo.a - _DistortionBlend));
 #else
 #define fragDistortion(i)
 #endif
@@ -353,8 +366,9 @@ void vertParticleUnlit (appdata_particles v, out VertexOutput o)
     UNITY_TRANSFER_FOG(o, o.vertex);
 }
 
-half4 fragParticleUnlit (VertexOutput IN) : SV_Target
+half4 fragParticleUnlit(VertexOutput IN) : SV_Target
 {
+    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
     half4 albedo = readTexture (_MainTex, IN);
     albedo *= _Color;
 
@@ -392,7 +406,21 @@ half4 fragParticleUnlit (VertexOutput IN) : SV_Target
     clip (albedo.a - _Cutoff + 0.0001);
     #endif
 
-    UNITY_APPLY_FOG_COLOR(IN.fogCoord, result, fixed4(0,0,0,0));
+    #if defined(_ALPHAMODULATE_ON)
+    UNITY_APPLY_FOG_COLOR(IN.fogCoord, result, fixed4(1, 1, 1, 0));         // modulate - fog to white color
+    #elif !defined(_ALPHATEST_ON) && defined(_ALPHABLEND_ON) && !defined(_ALPHAPREMULTIPLY_ON)
+    if (_DstBlend == 1)
+    {
+        UNITY_APPLY_FOG_COLOR(IN.fogCoord, result, fixed4(0, 0, 0, 0));     // additive - fog to black color
+    }
+    else
+    {
+        UNITY_APPLY_FOG(IN.fogCoord, result);                               // fade - normal fog
+    }
+    #else
+    UNITY_APPLY_FOG(IN.fogCoord, result);                                   // opaque - normal fog
+    #endif
+
     return result;
 }
 

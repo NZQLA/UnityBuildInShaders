@@ -12,7 +12,7 @@ Shader "Hidden/Physics/DebugVisWireCapsule" {
         Pass {
             Tags { "RenderType" = "Transparent" "Queue" = "Transparent" }
             Lighting Off
-            Blend SrcAlpha OneMinusSrcAlpha
+            Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
             ZTest LEqual ZWrite Off
             Offset -1, -20
 
@@ -50,7 +50,7 @@ Shader "Hidden/Physics/DebugVisWireCapsule" {
                 return o;
             }
 
-            float4 frag_surf (v2f_surf IN) : COLOR
+            float4 frag_surf (v2f_surf IN) : SV_Target
             {
                 return _Color;
             }

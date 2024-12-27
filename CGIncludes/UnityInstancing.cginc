@@ -34,7 +34,7 @@
     #define UNITY_FORCE_MAX_INSTANCE_COUNT 1
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL)
     #define UNITY_SUPPORT_STEREO_INSTANCING
 #endif
 
@@ -62,7 +62,7 @@
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
-#if defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN)
+#if defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
     // These platforms have constant buffers disabled normally, but not here (see CBUFFER_START/CBUFFER_END in HLSLSupport.cginc).
     #define UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(name)  cbuffer name {
     #define UNITY_INSTANCING_CBUFFER_SCOPE_END          }
@@ -81,12 +81,12 @@
     static uint unity_InstanceID;
 
     // Don't make UnityDrawCallInfo an actual CB on GL
-    #if !defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)
+    #if (!defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)) || defined(SHADER_API_SWITCH)
         UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityDrawCallInfo)
     #endif
             int unity_BaseInstanceID;
             int unity_InstanceCount;
-    #if !defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)
+    #if (!defined(SHADER_API_GLES3) && !defined(SHADER_API_GLCORE)) || defined(SHADER_API_SWITCH)
         UNITY_INSTANCING_CBUFFER_SCOPE_END
     #endif
 
@@ -125,9 +125,11 @@
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output)  output.stereoTargetEyeIndex = input.stereoTargetEyeIndex;
     #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input) unity_StereoEyeIndex = input.stereoTargetEyeIndex;
 #elif defined(UNITY_STEREO_MULTIVIEW_ENABLED)
-    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO float stereoTargetEyeIndex : BLENDWEIGHT0;
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output) output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     // HACK: Workaround for Mali shader compiler issues with directly using GL_ViewID_OVR (GL_OVR_multiview). This array just contains the values 0 and 1.
-    #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output) output.stereoTargetEyeIndex = unity_StereoEyeIndices[unity_StereoEyeIndex].x;
+    #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output) output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output) output.stereoTargetEyeIndex = input.stereoTargetEyeIndex;
     #if defined(SHADER_STAGE_VERTEX)
         #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input)
@@ -218,8 +220,8 @@
 
     #ifdef UNITY_FORCE_MAX_INSTANCE_COUNT
         #define UNITY_INSTANCED_ARRAY_SIZE  UNITY_FORCE_MAX_INSTANCE_COUNT
-    #elif defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE)
-        #define UNITY_INSTANCED_ARRAY_SIZE  2 // minimum array size that ensures dynamic indexing
+    #elif defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE) && !(defined(UNITY_COMPILER_DXC) && defined(SHADER_API_METAL) && defined(SHADER_API_MOBILE))
+        #define UNITY_INSTANCED_ARRAY_SIZE  2 // minimum array size that ensures dynamic indexing (does not work on iOS with DXC)
     #elif defined(UNITY_MAX_INSTANCE_COUNT)
         #define UNITY_INSTANCED_ARRAY_SIZE  UNITY_MAX_INSTANCE_COUNT
     #else
@@ -230,7 +232,7 @@
         #endif
     #endif
 
-    #define UNITY_INSTANCING_BUFFER_START(buf)      UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityInstancing_##buf) struct {
+    #define UNITY_INSTANCING_BUFFER_START(buf)      UNITY_INSTANCING_CBUFFER_SCOPE_BEGIN(UnityInstancing_##buf) struct  _type_##buf {
     #define UNITY_INSTANCING_BUFFER_END(arr)        } arr##Array[UNITY_INSTANCED_ARRAY_SIZE]; UNITY_INSTANCING_CBUFFER_SCOPE_END
     #define UNITY_DEFINE_INSTANCED_PROP(type, var)  type var;
     #define UNITY_ACCESS_INSTANCED_PROP(arr, var)   arr##Array[unity_InstanceID].var
@@ -334,20 +336,44 @@
         #endif
     UNITY_INSTANCING_BUFFER_END(unity_Builtins2)
 
+    UNITY_INSTANCING_BUFFER_START(PerDraw3)
+        UNITY_DEFINE_INSTANCED_PROP(float4x4, unity_PrevObjectToWorldArray)
+        UNITY_DEFINE_INSTANCED_PROP(float4x4, unity_PrevWorldToObjectArray)
+    UNITY_INSTANCING_BUFFER_END(unity_Builtins3)
+
     #ifndef UNITY_DONT_INSTANCE_OBJECT_MATRICES
         #define unity_ObjectToWorld     UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_ObjectToWorldArray)
         #define MERGE_UNITY_BUILTINS_INDEX(X) unity_Builtins##X##Array
         #define CALL_MERGE(X) MERGE_UNITY_BUILTINS_INDEX(X)
         #define unity_WorldToObject     UNITY_ACCESS_MERGED_INSTANCED_PROP(CALL_MERGE(UNITY_WORLDTOOBJECTARRAY_CB), unity_WorldToObjectArray)
 
+        inline float4 UnityObjectToClipPosODSInstanced(float3 inPos)
+        {
+            float4 clipPos;
+            float3 posWorld = mul(unity_ObjectToWorld, float4(inPos, 1.0)).xyz;
+            #if defined(STEREO_CUBEMAP_RENDER_ON)
+            float3 offset = ODSOffset(posWorld, unity_HalfStereoSeparation.x);
+            clipPos = mul(UNITY_MATRIX_VP, float4(posWorld + offset, 1.0));
+            #else
+            clipPos = mul(UNITY_MATRIX_VP, float4(posWorld, 1.0));
+            #endif
+            return clipPos;
+        }
+
         inline float4 UnityObjectToClipPosInstanced(in float3 pos)
         {
+            #if defined(STEREO_CUBEMAP_RENDER_ON)
+            return UnityObjectToClipPosODSInstanced(pos);
+            #else
+            // More efficient than computing M*VP matrix product
             return mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(pos, 1.0)));
+            #endif
         }
         inline float4 UnityObjectToClipPosInstanced(float4 pos)
         {
             return UnityObjectToClipPosInstanced(pos.xyz);
         }
+        #define UnityObjectToClipPosODS UnityObjectToClipPosODSInstanced
         #define UnityObjectToClipPos UnityObjectToClipPosInstanced
     #endif
 

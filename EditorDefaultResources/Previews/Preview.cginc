@@ -23,6 +23,9 @@ uniform bool _ManualTex2SRGB;
 uniform bool _ManualTex2Linear;
 
 uniform fixed4 _ColorMask;
+float _Exposure;
+
+uniform bool _IsPlainNormalmap;
 
 struct v2f {
     float4 vertex : SV_POSITION;
@@ -53,6 +56,8 @@ fixed4 frag(v2f i) : SV_Target
 #endif
 
     if (_Mip >= 0.0) c = cmip;
+    c.rgb *= exp2(_Exposure);
+
     if (_ManualTex2SRGB) c.rgb = LinearToGammaSpace(c.rgb);
 
 #ifdef PREVIEW_TRANSPARANT
@@ -74,6 +79,12 @@ fixed4 fragAlpha(v2f i) : SV_Target
     fixed4 c = tex2D(_MainTex, i.uv).aaaa, cmip = tex2Dlod(_MainTex, float4(i.uv.x, i.uv.y, 0, _Mip)).aaaa;
 #endif
     if (_Mip >= 0.0) c = cmip;
+
+    // Just like for Normal Maps, we force an extra conversion for
+    // AssetPreviews because we do not wish for Alpha-Only to appear
+    // "overblown" due to the linear -> sRGB conversion.
+    if (_ManualTex2Linear) c.rgb = GammaToLinearSpace(c.rgb);
+
     c.a = UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i.clipUV);
     return c;
 }
@@ -89,7 +100,7 @@ fixed4 fragNormal(v2f i) : SV_Target
 #endif
     if (_Mip >= 0.0) pn = pnmip;
 
-    fixed3 normal = 0.5f + 0.5f * UnpackNormal(pn);
+    fixed3 normal = (_IsPlainNormalmap) ? pn.rgb : 0.5f + 0.5f * UnpackNormal(pn);
     fixed alpha = UNITY_SAMPLE_1CHANNEL(_GUIClipTexture, i.clipUV);
     fixed4 col = fixed4(normal.rgb, alpha);
     if (_ManualTex2Linear) col.rgb = GammaToLinearSpace(col.rgb);

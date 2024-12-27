@@ -16,10 +16,11 @@ Shader "Nature/Terrain/Specular" {
         Tags {
             "Queue" = "Geometry-100"
             "RenderType" = "Opaque"
+            "TerrainCompatible" = "True"
         }
 
         CGPROGRAM
-        #pragma surface surf BlinnPhong vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer addshadow fullforwardshadows
+        #pragma surface surf BlinnPhong vertex:SplatmapVert finalcolor:SplatmapFinalColor finalgbuffer:SplatmapFinalGBuffer addshadow fullforwardshadows
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
         #pragma multi_compile_fog
         #pragma multi_compile_local_fragment __ _ALPHATEST_ON

@@ -11,14 +11,14 @@ Shader "Hidden/SceneViewWireframe" {
             fixed4 unity_SceneViewWireColor;
         CBUFFER_END
 
-        fixed4 frag () : COLOR
+        fixed4 frag () : SV_Target
         {
             return unity_SceneViewWireColor;
         }
     ENDCG
 
     SubShader {
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZTest LEqual ZWrite Off
         Offset -1, -1
 
@@ -39,12 +39,21 @@ Shader "Hidden/SceneViewWireframe" {
             #pragma target 3.0
             ENDCG
         }
+
+        Pass {
+            // SM6.0
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma use_dxc d3d11
+            ENDCG
+        }
     }
 
     SubShader {
         Tags { "ForceSupported" = "True" }
 
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ZTest LEqual ZWrite Off
         Offset -1, -1
 

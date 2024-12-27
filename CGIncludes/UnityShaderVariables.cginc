@@ -157,7 +157,7 @@ CBUFFER_START(UnityShadows)
     float4 _LightSplitsNear;
     float4 _LightSplitsFar;
     float4x4 unity_WorldToShadow[4];
-    half4 _LightShadowData;
+    float4 _LightShadowData;
     float4 unity_ShadowFadeCenterAndType;
 CBUFFER_END
 
@@ -185,12 +185,6 @@ GLOBAL_CBUFFER_START(UnityStereoGlobals)
 
     float3 unity_StereoWorldSpaceCameraPos[2];
     float4 unity_StereoScaleOffset[2];
-GLOBAL_CBUFFER_END
-#endif
-
-#if defined(USING_STEREO_MATRICES) && defined(UNITY_STEREO_MULTIVIEW_ENABLED)
-GLOBAL_CBUFFER_START(UnityStereoEyeIndices)
-    float4 unity_StereoEyeIndices[2];
 GLOBAL_CBUFFER_END
 #endif
 

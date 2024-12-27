@@ -4,13 +4,13 @@ Shader "Hidden/Handles Dotted Lines"{
     Properties
     {
         _MainTex ("Texture", Any) = "white" {}
-        [Enum(Always,0, Never,1, Less,2, Equal,3, LEqual,4, Greater,5, NotEqual,6, GEqual,7, Always,8)] _HandleZTest ("_HandleZTest", Int) = 8
+        [Enum(UnityEngine.Rendering.CompareFunction)] _HandleZTest ("_HandleZTest", Int) = 8
     }
     SubShader
     {
         Tags { "ForceSupported" = "True" }
         Lighting Off
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         Cull Off
         ZWrite Off
         ZTest [_HandleZTest]
