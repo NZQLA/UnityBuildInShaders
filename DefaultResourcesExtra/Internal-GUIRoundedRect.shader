@@ -40,7 +40,6 @@ Shader "Hidden/Internal-GUIRoundedRect"
     uniform float _CornerRadiuses[4];
     uniform float _BorderWidths[4];
     uniform float _Rect[4];
-    uniform bool _SmoothCorners;
 
     half GetCornerAlpha(float2 p, float2 center, float borderWidth1, float borderWidth2, float radius, float pixelScale)
     {
@@ -61,7 +60,7 @@ Shader "Hidden/Internal-GUIRoundedRect"
         half alpha = saturate(rawDist+0.5f);
         half innerDistAlpha = hasBorder ? ((a > 0 && b > 0) ? alpha : 1.0f) : 0.0f;
 
-        return (outerDistAlpha == 0.0f) ? innerDistAlpha : (_SmoothCorners ? (1.0f - outerDistAlpha) : 0.0);
+        return (outerDistAlpha == 0.0f) ? innerDistAlpha : (1.0f - outerDistAlpha);
     }
 
     bool IsPointInside(float2 p, float4 rect)

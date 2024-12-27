@@ -1,9 +1,15 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-Shader "Hidden/TerrainEngine/Splatmap/Diffuse-BaseGen"
-{
+Shader "Hidden/TerrainEngine/Splatmap/Diffuse-BaseGen" {
     Properties
     {
+        [HideInInspector] _Control("AlphaMap", 2D) = "" {}
+
+        [HideInInspector] _Splat0 ("Layer 0 (R)", 2D) = "white" {}
+        [HideInInspector] _Splat1 ("Layer 1 (G)", 2D) = "white" {}
+        [HideInInspector] _Splat2 ("Layer 2 (B)", 2D) = "white" {}
+        [HideInInspector] _Splat3 ("Layer 3 (A)", 2D) = "white" {}
+
         [HideInInspector] _DstBlend("DstBlend", Float) = 0.0
     }
     SubShader
@@ -11,7 +17,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Diffuse-BaseGen"
         Tags
         {
             "Name" = "_MainTex"
-            "Format" = "RGBA32"
+            "Format" = "ARGB32"
             "Size" = "1"
         }
         Pass

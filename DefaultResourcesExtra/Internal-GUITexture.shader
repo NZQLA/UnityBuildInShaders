@@ -49,7 +49,7 @@ Shader "Hidden/Internal-GUITexture"
 
     SubShader {
 
-        Tags { "RenderType"="Overlay" }
+        Tags { "ForceSupported" = "True" "RenderType"="Overlay" }
 
         Lighting Off
         Blend SrcAlpha OneMinusSrcAlpha, One One
@@ -65,7 +65,7 @@ Shader "Hidden/Internal-GUITexture"
 
     SubShader {
 
-        Tags { "RenderType"="Overlay" }
+        Tags { "ForceSupported" = "True" "RenderType"="Overlay" }
 
         Lighting Off
         Blend SrcAlpha OneMinusSrcAlpha

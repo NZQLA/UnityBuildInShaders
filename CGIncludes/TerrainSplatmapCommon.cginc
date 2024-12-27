@@ -3,12 +3,9 @@
 #ifndef TERRAIN_SPLATMAP_COMMON_CGINC_INCLUDED
 #define TERRAIN_SPLATMAP_COMMON_CGINC_INCLUDED
 
-// Since 2018.3 we changed from _TERRAIN_NORMAL_MAP to _NORMALMAP to save 1 keyword.
-// Since 2019.2 terrain keywords are changed to  local keywords so it doesn't really matter. You can use both.
-#if defined(_NORMALMAP) && !defined(_TERRAIN_NORMAL_MAP)
+#ifdef _NORMALMAP
+    // Since 2018.3 we changed from _TERRAIN_NORMAL_MAP to _NORMALMAP to save 1 keyword.
     #define _TERRAIN_NORMAL_MAP
-#elif !defined(_NORMALMAP) && defined(_TERRAIN_NORMAL_MAP)
-    #define _NORMALMAP
 #endif
 
 struct Input
@@ -39,16 +36,6 @@ UNITY_INSTANCING_BUFFER_END(Terrain)
 #ifdef _NORMALMAP
     sampler2D _Normal0, _Normal1, _Normal2, _Normal3;
     float _NormalScale0, _NormalScale1, _NormalScale2, _NormalScale3;
-#endif
-
-#ifdef _ALPHATEST_ON
-    sampler2D _TerrainHolesTexture;
-
-    void ClipHoles(float2 uv)
-    {
-        float hole = tex2D(_TerrainHolesTexture, uv).r;
-        clip(hole == 0.0f ? -1 : 1);
-    }
 #endif
 
 #if defined(TERRAIN_BASE_PASS) && defined(UNITY_PASS_META)
@@ -90,10 +77,10 @@ void SplatmapVert(inout appdata_full v, out Input data)
     v.tangent.xyz = cross(v.normal, float3(0,0,1));
     v.tangent.w = -1;
 
-    data.tc.xy = v.texcoord.xy;
+    data.tc.xy = v.texcoord;
 #ifdef TERRAIN_BASE_PASS
     #ifdef UNITY_PASS_META
-        data.tc.xy = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
+        data.tc.xy = v.texcoord * _MainTex_ST.xy + _MainTex_ST.zw;
     #endif
 #else
     float4 pos = UnityObjectToClipPos(v.vertex);
@@ -109,10 +96,6 @@ void SplatmapMix(Input IN, half4 defaultAlpha, out half4 splat_control, out half
 void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 mixedDiffuse, inout fixed3 mixedNormal)
 #endif
 {
-    #ifdef _ALPHATEST_ON
-        ClipHoles(IN.tc.xy);
-    #endif
-
     // adjust splatUVs so the edges of the terrain tile lie on pixel centers
     float2 splatUV = (IN.tc.xy * (_Control_TexelSize.zw - 1.0f) + 0.5f) * _Control_TexelSize.xy;
     splat_control = tex2D(_Control, splatUV);
@@ -149,11 +132,7 @@ void SplatmapMix(Input IN, out half4 splat_control, out half weight, out fixed4 
         mixedNormal += UnpackNormalWithScale(tex2D(_Normal1, uvSplat1), _NormalScale1) * splat_control.g;
         mixedNormal += UnpackNormalWithScale(tex2D(_Normal2, uvSplat2), _NormalScale2) * splat_control.b;
         mixedNormal += UnpackNormalWithScale(tex2D(_Normal3, uvSplat3), _NormalScale3) * splat_control.a;
-#if defined(SHADER_API_SWITCH)
-        mixedNormal.z += UNITY_HALF_MIN; // to avoid nan after normalizing
-#else
         mixedNormal.z += 1e-5f; // to avoid nan after normalizing
-#endif
     #endif
 
     #if defined(INSTANCING_ON) && defined(SHADER_TARGET_SURFACE_ANALYSIS) && defined(TERRAIN_INSTANCED_PERPIXEL_NORMAL)

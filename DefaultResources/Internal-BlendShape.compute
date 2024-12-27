@@ -19,11 +19,8 @@ uint g_FirstVert; // First vertex from blend shape buffer to use
 uint g_VertCount; // Sparse vertex count, not the full amount of vertices in mesh
 float g_Weight;
 
-SAMPLER_UNIFORM RWStructuredBuffer<MeshVertex> inOutMeshVertices;
-SAMPLER_UNIFORM StructuredBuffer<BlendShapeVertex> inBlendShapeVertices;
-
 [numthreads(64, 1, 1)]
-void main(uint3 threadID : SV_DispatchThreadID )
+void main(uint3 threadID : SV_DispatchThreadID, SAMPLER_UNIFORM RWStructuredBuffer<MeshVertex> inOutMeshVertices, SAMPLER_UNIFORM StructuredBuffer<BlendShapeVertex> inBlendShapeVertices)
 {
     const uint t = threadID.x;
 

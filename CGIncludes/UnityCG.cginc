@@ -12,8 +12,6 @@
 #define UNITY_HALF_PI       1.57079632679f
 #define UNITY_INV_HALF_PI   0.636619772367f
 
-#define UNITY_HALF_MIN      6.103515625e-5  // 2^-14, the same value for 10, 11 and 16-bit: https://www.khronos.org/opengl/wiki/Small_Float_Formats
-
 // Should SH (light probe / ambient) calculations be performed?
 // - When both static and dynamic lightmaps are available, no SH evaluation is performed
 // - When static and dynamic lightmaps are not available, SH evaluation is always performed
@@ -223,7 +221,7 @@ inline float3 ObjSpaceLightDir( in float4 v )
     #endif
 }
 
-// Computes world space view direction from object position in world space
+// Computes world space view direction, from object space position
 inline float3 UnityWorldSpaceViewDir( in float3 worldPos )
 {
     return _WorldSpaceCameraPos.xyz - worldPos;
@@ -522,6 +520,7 @@ inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
 
 // Decodes HDR textures
 // handles dLDR, RGBM formats
+// Called by DecodeLightmap when UNITY_NO_RGBM is not defined.
 inline half3 DecodeLightmapRGBM (half4 data, half4 decodeInstructions)
 {
     // If Linear mode is not supported we can skip exponent part
@@ -1105,13 +1104,12 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 
 #ifdef LOD_FADE_CROSSFADE
     #define UNITY_APPLY_DITHER_CROSSFADE(vpos)  UnityApplyDitherCrossFade(vpos)
-    sampler2D unity_DitherMask;
+    sampler2D _DitherMaskLOD2D;
     void UnityApplyDitherCrossFade(float2 vpos)
     {
         vpos /= 4; // the dither mask texture is 4x4
-        float mask = tex2D(unity_DitherMask, vpos).a;
-        float sgn = unity_LODFade.x > 0 ? 1.0f : -1.0f;
-        clip(unity_LODFade.x - mask * sgn);
+        vpos.y = frac(vpos.y) * 0.0625 /* 1/16 */ + unity_LODFade.y; // quantized lod fade by 16 levels
+        clip(tex2D(_DitherMaskLOD2D, vpos).a - 0.5);
     }
 #else
     #define UNITY_APPLY_DITHER_CROSSFADE(vpos)
