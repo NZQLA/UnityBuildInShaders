@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "Hidden/Internal-PrePassLighting" {
 Properties {
 	_LightTexture0 ("", any) = "" {}
@@ -13,7 +11,6 @@ CGINCLUDE
 #include "UnityDeferredLibrary.cginc"
 
 sampler2D _CameraNormalsTexture;
-float4 _CameraNormalsTexture_ST;
 
 half4 CalculateLight (unity_v2f_deferred i)
 {
@@ -23,7 +20,7 @@ half4 CalculateLight (unity_v2f_deferred i)
 	float atten, fadeDist;
 	UnityDeferredCalculateLightParams (i, wpos, uv, lightDir, atten, fadeDist);
 
-	half4 nspec = tex2D (_CameraNormalsTexture, TRANSFORM_TEX(uv, _CameraNormalsTexture));
+	half4 nspec = tex2D (_CameraNormalsTexture, uv);
 	half3 normal = nspec.rgb * 2 - 1;
 	normal = normalize(normal);
 	
@@ -77,6 +74,25 @@ CGPROGRAM
 fixed4 frag (unity_v2f_deferred i) : SV_Target
 {
 	return CalculateLight(i);
+}
+
+ENDCG
+}
+
+/*Pass 3: Xenon HDR Specular Pass - 10-10-10-2 buffer means we need separate specular buffer*/
+Pass {
+	ZWrite Off
+	Blend One One
+	
+CGPROGRAM
+#pragma target 3.0
+#pragma vertex vert_deferred
+#pragma fragment frag
+#pragma multi_compile_lightpass
+
+fixed4 frag (unity_v2f_deferred i) : SV_Target
+{
+	return CalculateLight(i).argb;
 }
 
 ENDCG

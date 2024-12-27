@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "Particles/VertexLit Blended" {
 Properties {
 	_EmisColor ("Emissive Color", Color) = (.2,.2,.2,0)
@@ -7,7 +5,7 @@ Properties {
 }
 
 SubShader {
-	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" "PreviewType"="Plane" }
+	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
 	Tags { "LightMode" = "Vertex" }
 	Cull Off
 	Lighting On

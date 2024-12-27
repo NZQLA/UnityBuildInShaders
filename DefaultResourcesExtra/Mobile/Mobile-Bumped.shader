@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 // Simplified Bumped shader. Differences from regular Bumped one:
 // - no Main Color
 // - Normalmap uses Tiling/Offset of the Base texture
@@ -8,7 +6,7 @@
 Shader "Mobile/Bumped Diffuse" {
 Properties {
 	_MainTex ("Base (RGB)", 2D) = "white" {}
-	[NoScaleOffset] _BumpMap ("Normalmap", 2D) = "bump" {}
+	_BumpMap ("Normalmap", 2D) = "bump" {}
 }
 
 SubShader {

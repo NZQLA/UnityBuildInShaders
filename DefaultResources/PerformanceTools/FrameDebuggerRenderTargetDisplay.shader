@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "Hidden/FrameDebuggerRenderTargetDisplay" {
 	Properties {
 		_MainTex ("", any) = "white" {}
@@ -19,7 +17,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay" {
 
 	v2f vert(appdata v) {
 		v2f o;
-		o.pos = UnityObjectToClipPos(v.vertex);
+		o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
 		o.uv = v.uv;
 		return o;
 	}

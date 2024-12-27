@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "Hidden/CubeBlend"
 {
 Properties
@@ -38,7 +36,7 @@ struct v2f {
 v2f vert (appdata_t v)
 {
 	v2f o;
-	o.vertex = UnityObjectToClipPos(v.vertex);
+	o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
 	o.texcoord = v.texcoord;
 	return o;
 }

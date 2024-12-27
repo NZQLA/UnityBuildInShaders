@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "Nature/Tree Soft Occlusion Leaves" {
 	Properties {
 		_Color ("Main Color", Color) = (1,1,1,1)
@@ -17,7 +15,7 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 	
 	SubShader {
 		Tags {
-			"Queue" = "AlphaTest"
+			"Queue" = "Transparent-99"
 			"IgnoreProjector"="True"
 			"RenderType" = "TreeTransparentCutout"
 			"DisableBatching"="True"
@@ -63,7 +61,6 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 			struct v2f { 
 				V2F_SHADOW_CASTER;
 				float2 uv : TEXCOORD1;
-				UNITY_VERTEX_OUTPUT_STEREO
 			};
 			
 			struct appdata {
@@ -71,13 +68,10 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 				float3 normal : NORMAL;
 			    fixed4 color : COLOR;
 			    float4 texcoord : TEXCOORD0;
-				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 			v2f vert( appdata v )
 			{
 				v2f o;
-				UNITY_SETUP_INSTANCE_ID(v);
-				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				TerrainAnimateTree(v.vertex, v.color.w);
 				TRANSFER_SHADOW_CASTER_NORMALOFFSET(o)
 				o.uv = v.texcoord;
@@ -105,7 +99,7 @@ Shader "Nature/Tree Soft Occlusion Leaves" {
 	// and earlier.
 	SubShader {
 		Tags {
-			"Queue" = "AlphaTest"
+			"Queue" = "Transparent-99"
 			"IgnoreProjector"="True"
 			"RenderType" = "TransparentCutout"
 		}

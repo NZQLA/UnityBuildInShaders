@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 // Simplified Bumped Specular shader. Differences from regular Bumped Specular one:
 // - no Main Color nor Specular Color
 // - specular lighting directions are approximated per vertex
@@ -13,7 +11,7 @@ Shader "Mobile/Bumped Specular (1 Directional Light)" {
 Properties {
 	_Shininess ("Shininess", Range (0.03, 1)) = 0.078125
 	_MainTex ("Base (RGB) Gloss (A)", 2D) = "white" {}
-	[NoScaleOffset] _BumpMap ("Normalmap", 2D) = "bump" {}
+	_BumpMap ("Normalmap", 2D) = "bump" {}
 }
 SubShader { 
 	Tags { "RenderType"="Opaque" }

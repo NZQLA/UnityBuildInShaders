@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "UI/Lit/Transparent"
 {
 	Properties
@@ -63,12 +61,11 @@ Shader "UI/Lit/Transparent"
 				float2 texcoord1 : TEXCOORD1;
 				fixed4 color : COLOR;
 				float3 normal : NORMAL;
-				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct Input
 			{
-				float2 uv_MainTex;
+				half2 uv_MainTex;
 				fixed4 color : COLOR;
 				float4 worldPosition;
 			};

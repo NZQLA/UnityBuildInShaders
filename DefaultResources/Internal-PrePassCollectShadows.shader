@@ -1,14 +1,11 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 // Collects cascaded shadows into screen space buffer
-Shader "Hidden/Internal-ScreenSpaceShadows" {
+Shader "Hidden/Internal-PrePassCollectShadows" {
 Properties {
 	_ShadowMapTexture ("", any) = "" {}
 }
 
 CGINCLUDE
 #include "UnityCG.cginc"
-#include "UnityShadowLibrary.cginc"
 
 // Configuration
 
@@ -29,48 +26,28 @@ CGINCLUDE
 struct appdata {
 	float4 vertex : POSITION;
 	float2 texcoord : TEXCOORD0;
-#ifdef UNITY_STEREO_INSTANCING_ENABLED
-	float3 ray[2] : TEXCOORD1;
-#else
-	float3 ray : TEXCOORD1;
-#endif
-	UNITY_VERTEX_INPUT_INSTANCE_ID
+	float3 normal : NORMAL;
 };
 
 struct v2f {
+	float2 uv : TEXCOORD0;
 
-	float4 pos : SV_POSITION;
-
-	// xy uv / zw screenpos
-	float4 uv : TEXCOORD0;
 	// View space ray, for perspective case
 	float3 ray : TEXCOORD1;
 	// Orthographic view space positions (need xy as well for oblique matrices)
-	float3 orthoPosNear : TEXCOORD2;
-	float3 orthoPosFar  : TEXCOORD3;
-	UNITY_VERTEX_INPUT_INSTANCE_ID
-	UNITY_VERTEX_OUTPUT_STEREO
+    float3 orthoPosNear : TEXCOORD2;
+    float3 orthoPosFar  : TEXCOORD3;
+
+	float4 pos : SV_POSITION;
 };
 
 v2f vert (appdata v)
 {
 	v2f o;
-	UNITY_SETUP_INSTANCE_ID(v);
-	UNITY_TRANSFER_INSTANCE_ID(v, o);
-	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-	float4 clipPos = UnityObjectToClipPos(v.vertex);
+	o.uv = v.texcoord;
+	o.ray = v.normal;
+	float4 clipPos = mul(UNITY_MATRIX_MVP, v.vertex);
 	o.pos = clipPos;
-	o.uv.xy = v.texcoord;
-
-	// unity_CameraInvProjection at the PS level.
-	o.uv.zw = ComputeNonStereoScreenPos(clipPos);
-
-	// Perspective case
-#ifdef UNITY_STEREO_INSTANCING_ENABLED
-	o.ray = v.ray[unity_StereoEyeIndex];
-#else
-	o.ray = v.ray;
-#endif
 
 	// To compute view space position from Z buffer for orthographic case,
 	// we need different code than for perspective case. We want to avoid
@@ -78,21 +55,25 @@ v2f vert (appdata v)
 	// constant registers used. Particularly with constant registers, having
 	// unity_CameraInvProjection in the pixel shader would push the PS over SM2.0
 	// limits.
+
 	clipPos.y *= _ProjectionParams.x;
 	float3 orthoPosNear = mul(unity_CameraInvProjection, float4(clipPos.x,clipPos.y,-1,1)).xyz;
 	float3 orthoPosFar  = mul(unity_CameraInvProjection, float4(clipPos.x,clipPos.y, 1,1)).xyz;
 	orthoPosNear.z *= -1;
 	orthoPosFar.z *= -1;
-	o.orthoPosNear = orthoPosNear;
+    o.orthoPosNear = orthoPosNear;
 	o.orthoPosFar = orthoPosFar;
 
 	return o;
 }
 
-UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
-
+sampler2D_float _CameraDepthTexture;
 // sizes of cascade projections, relative to first one
 float4 unity_ShadowCascadeScales;
+
+CBUFFER_START(UnityPerCamera2)
+float4x4 _CameraToWorld;
+CBUFFER_END
 
 UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 float4 _ShadowMapTexture_TexelSize;
@@ -102,8 +83,10 @@ float4 _ShadowMapTexture_TexelSize;
 //
 #if defined (SHADOWS_SPLIT_SPHERES)
 	#define GET_CASCADE_WEIGHTS(wpos, z)    getCascadeWeights_splitSpheres(wpos)
+	#define GET_SHADOW_FADE(wpos, z)		getShadowFade_SplitSpheres(wpos)
 #else
 	#define GET_CASCADE_WEIGHTS(wpos, z)	getCascadeWeights( wpos, z )
+	#define GET_SHADOW_FADE(wpos, z)		getShadowFade(z)
 #endif
 
 #if defined (SHADOWS_SINGLE_CASCADE)
@@ -113,9 +96,10 @@ float4 _ShadowMapTexture_TexelSize;
 #endif
 
 // prototypes 
-inline float3 computeCameraSpacePosFromDepth(v2f i);
 inline fixed4 getCascadeWeights(float3 wpos, float z);		// calculates the cascade weights based on the world position of the fragment and plane positions
 inline fixed4 getCascadeWeights_splitSpheres(float3 wpos);	// calculates the cascade weights based on world pos and split spheres positions
+inline float  getShadowFade_SplitSpheres( float3 wpos );	
+inline float  getShadowFade( float3 wpos, float z );
 inline float4 getShadowCoord_SingleCascade( float4 wpos );	// converts the shadow coordinates for shadow map using the world position of fragment (optimized for single fragment)
 inline float4 getShadowCoord( float4 wpos, fixed4 cascadeWeights );// converts the shadow coordinates for shadow map using the world position of fragment
 half 		  sampleShadowmap_PCF5x5 (float4 coord);		// samples the shadowmap based on PCF filtering (5x5 kernel)
@@ -150,21 +134,34 @@ inline fixed4 getCascadeWeights_splitSpheres(float3 wpos)
 }
 
 /**
+ * Returns the shadow fade based on the 'z' position of the fragment
+ */
+inline float getShadowFade( float z )
+{
+	return saturate(z * _LightShadowData.z + _LightShadowData.w);
+}
+
+/**
+ * Returns the shadow fade based on the world position of the fragment, and the distance from the shadow fade center
+ */
+inline float getShadowFade_SplitSpheres( float3 wpos )
+{	
+	float sphereDist = distance(wpos.xyz, unity_ShadowFadeCenterAndType.xyz);
+	half shadowFade = saturate(sphereDist * _LightShadowData.z + _LightShadowData.w);
+	return shadowFade;	
+}
+
+/**
  * Returns the shadowmap coordinates for the given fragment based on the world position and z-depth.
  * These coordinates belong to the shadowmap atlas that contains the maps for all cascades.
  */
 inline float4 getShadowCoord( float4 wpos, fixed4 cascadeWeights )
 {
-	float3 sc0 = mul (unity_WorldToShadow[0], wpos).xyz;
-	float3 sc1 = mul (unity_WorldToShadow[1], wpos).xyz;
-	float3 sc2 = mul (unity_WorldToShadow[2], wpos).xyz;
-	float3 sc3 = mul (unity_WorldToShadow[3], wpos).xyz;
-	float4 shadowMapCoordinate = float4(sc0 * cascadeWeights[0] + sc1 * cascadeWeights[1] + sc2 * cascadeWeights[2] + sc3 * cascadeWeights[3], 1);
-#if defined(UNITY_REVERSED_Z)
-	float  noCascadeWeights = 1 - dot(cascadeWeights, float4(1, 1, 1, 1));
-	shadowMapCoordinate.z += noCascadeWeights;
-#endif
-	return shadowMapCoordinate;
+	float3 sc0 = mul (unity_World2Shadow[0], wpos).xyz;
+	float3 sc1 = mul (unity_World2Shadow[1], wpos).xyz;
+	float3 sc2 = mul (unity_World2Shadow[2], wpos).xyz;
+	float3 sc3 = mul (unity_World2Shadow[3], wpos).xyz;
+	return float4(sc0 * cascadeWeights[0] + sc1 * cascadeWeights[1] + sc2 * cascadeWeights[2] + sc3 * cascadeWeights[3], 1);
 }
 
 /**
@@ -172,7 +169,7 @@ inline float4 getShadowCoord( float4 wpos, fixed4 cascadeWeights )
  */
 inline float4 getShadowCoord_SingleCascade( float4 wpos )
 {
-	return float4( mul (unity_WorldToShadow[0], wpos).xyz, 0);
+	return float4( mul (unity_World2Shadow[0], wpos).xyz, 0);
 }
 
 /**
@@ -201,50 +198,6 @@ inline float3 combineShadowcoordComponents (float2 baseUV, float2 deltaUV, float
 	float3 uv = float3( baseUV + deltaUV, depth );
 	uv.z += dot (deltaUV, receiverPlaneDepthBias); // apply the depth bias
 	return uv;
-}
-
-/**
-* Get camera space coord from depth and inv projection matrices
-*/
-inline float3 computeCameraSpacePosFromDepthAndInvProjMat(v2f i)
-{
-	float zdepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv.xy);
-
-	#if defined(UNITY_REVERSED_Z)
-		zdepth = 1 - zdepth;
-	#endif
-
-	// View position calculation for oblique clipped projection case.
-	// this will not be as precise nor as fast as the other method
-	// (which computes it from interpolated ray & depth) but will work
-	// with funky projections.
-	float4 clipPos = float4(i.uv.zw, zdepth, 1.0);
-	clipPos.xyz = 2.0f * clipPos.xyz - 1.0f;
-	float4 camPos = mul(unity_CameraInvProjection, clipPos);
-	camPos.xyz /= camPos.w;
-	camPos.z *= -1;
-	return camPos.xyz;
-}
-
-/**
-* Get camera space coord from depth and info from VS
-*/
-inline float3 computeCameraSpacePosFromDepthAndVSInfo(v2f i)
-{
-	float zdepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv.xy);
-
-	// 0..1 linear depth, 0 at camera, 1 at far plane.
-	float depth = lerp(Linear01Depth(zdepth), zdepth, unity_OrthoParams.w);
-#if defined(UNITY_REVERSED_Z)
-	zdepth = 1 - zdepth;
-#endif
-
-	// view position calculation for perspective & ortho cases
-	float3 vposPersp = i.ray * depth;
-	float3 vposOrtho = lerp(i.orthoPosNear, i.orthoPosFar, zdepth);
-	// pick the perspective or ortho position as needed
-	float3 camPos = lerp(vposPersp, vposOrtho, unity_OrthoParams.w);
-	return camPos.xyz;
 }
 
 /**
@@ -363,94 +316,27 @@ half unity_sampleShadowmap( float4 coord )
 	return shadow;
 }
 
-/**
- *	Hard shadow 
- */
 fixed4 frag_hard (v2f i) : SV_Target
 {
-    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); // required for sampling the correct slice of the shadow map render texture array
+	float zdepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
 
-	float3 vpos = computeCameraSpacePosFromDepth(i);
+	// 0..1 linear depth, 0 at near plane, 1 at far plane.
+	float depth = lerp (Linear01Depth(zdepth), zdepth, unity_OrthoParams.w);
 
-	float4 wpos = mul (unity_CameraToWorld, float4(vpos,1));
+	// view position calculation for perspective & ortho cases
+	float3 vposPersp = i.ray * depth;
+	float3 vposOrtho = lerp(i.orthoPosNear, i.orthoPosFar, zdepth);
+	// pick the perspective or ortho position as needed
+	float3 vpos = lerp (vposPersp, vposOrtho, unity_OrthoParams.w);
+
+	float4 wpos = mul (_CameraToWorld, float4(vpos,1));
 
 	fixed4 cascadeWeights = GET_CASCADE_WEIGHTS (wpos, vpos.z);
 	half shadow = unity_sampleShadowmap( GET_SHADOW_COORDINATES(wpos, cascadeWeights) );
+	shadow += GET_SHADOW_FADE(wpos, vpos.z);
 
 	fixed4 res = shadow;
 	return res;
-}
-
-/**
- *	Soft Shadow (SM 3.0)
- */
-fixed4 frag_pcf5x5(v2f i) : SV_Target
-{
-    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); // required for sampling the correct slice of the shadow map render texture array
-
-	float3 vpos = computeCameraSpacePosFromDepth(i);
-
-	// sample the cascade the pixel belongs to
-	float4 wpos = mul(unity_CameraToWorld, float4(vpos,1));
-	fixed4 cascadeWeights = GET_CASCADE_WEIGHTS(wpos, vpos.z);
-	float4 coord = GET_SHADOW_COORDINATES(wpos, cascadeWeights);
-
-	float2 receiverPlaneDepthBiasCascade0 = 0.0;
-	float2 receiverPlaneDepthBias = 0.0;
-#if UNITY_USE_RECEIVER_PLANE_BIAS
-	// Reveiver plane depth bias: need to calculate it based on shadow coordinate
-	// as it would be in first cascade; otherwise derivatives
-	// at cascade boundaries will be all wrong. So compute
-	// it from cascade 0 UV, and scale based on which cascade we're in.
-	// 
-	float3 coordCascade0 = getShadowCoord_SingleCascade(wpos);
-	receiverPlaneDepthBiasCascade0 = getReceiverPlaneDepthBias(coordCascade0.xyz);
-	float biasMultiply = dot(cascadeWeights,unity_ShadowCascadeScales);
-
-	receiverPlaneDepthBias = receiverPlaneDepthBiasCascade0 * biasMultiply;
-
-	// Static depth biasing to make up for incorrect fractional
-	// sampling on the shadow map grid; from "A Sampling of Shadow Techniques"
-	// (http://mynameismjp.wordpress.com/2013/09/10/shadow-maps/)
-	float fractionalSamplingError = 2 * dot(_ShadowMapTexture_TexelSize.xy, abs(receiverPlaneDepthBias));
-	coord.z -= min(fractionalSamplingError, UNITY_RECEIVER_PLANE_MIN_FRACTIONAL_ERROR);
-#endif
-
-
-	half shadow = sampleShadowmap_PCF5x5(coord, receiverPlaneDepthBias);
-
-
-	// Blend between shadow cascades if enabled
-	//
-	// Not working yet with split spheres, and no need when 1 cascade
-#if UNITY_USE_CASCADE_BLENDING && !defined(SHADOWS_SPLIT_SPHERES) && !defined(SHADOWS_SINGLE_CASCADE)
-	half4 z4 = (float4(vpos.z,vpos.z,vpos.z,vpos.z) - _LightSplitsNear) / (_LightSplitsFar - _LightSplitsNear);
-	half alpha = dot(z4 * cascadeWeights, half4(1,1,1,1));
-
-	UNITY_BRANCH
-		if (alpha > 1 - UNITY_CASCADE_BLEND_DISTANCE)
-		{
-			// get alpha to 0..1 range over the blend distance
-			alpha = (alpha - (1 - UNITY_CASCADE_BLEND_DISTANCE)) / UNITY_CASCADE_BLEND_DISTANCE;
-
-			// sample next cascade
-			cascadeWeights = fixed4(0, cascadeWeights.xyz);
-			coord = GET_SHADOW_COORDINATES(wpos, cascadeWeights);
-
-#if UNITY_USE_RECEIVER_PLANE_BIAS
-			biasMultiply = dot(cascadeWeights,unity_ShadowCascadeScales);
-			receiverPlaneDepthBias = receiverPlaneDepthBiasCascade0 * biasMultiply;
-			fractionalSamplingError = 2 * dot(_ShadowMapTexture_TexelSize.xy, abs(receiverPlaneDepthBias));
-			coord.z -= min(fractionalSamplingError, UNITY_RECEIVER_PLANE_MIN_FRACTIONAL_ERROR);
-#endif
-
-			half shadowNextCascade = sampleShadowmap_PCF3x3(coord, receiverPlaneDepthBias);
-
-			shadow = lerp(shadow, shadowNextCascade, alpha);
-		}
-#endif
-
-	return shadow;
 }
 ENDCG
 
@@ -460,7 +346,6 @@ ENDCG
 // Just collect shadows into the buffer. Used on pre-SM3 GPUs and when hard shadows are picked.
 
 SubShader {
-	Tags{ "ShadowmapFilter" = "HardShadow" }
 	Pass {
 		ZWrite Off ZTest Always Cull Off
 
@@ -469,33 +354,6 @@ SubShader {
 		#pragma fragment frag_hard
 		#pragma multi_compile_shadowcollector
 
-		inline float3 computeCameraSpacePosFromDepth(v2f i)
-		{
-			return computeCameraSpacePosFromDepthAndVSInfo(i);
-		}
-		ENDCG
-	}
-}
-
-// ----------------------------------------------------------------------------------------
-// Subshader for hard shadows:
-// Just collect shadows into the buffer. Used on pre-SM3 GPUs and when hard shadows are picked.
-// This version does inv projection at the PS level, slower and less precise however more general.
-
-SubShader {
-	Tags{ "ShadowmapFilter" = "HardShadow_FORCE_INV_PROJECTION_IN_PS" }
-	Pass{
-		ZWrite Off ZTest Always Cull Off
-
-		CGPROGRAM
-		#pragma vertex vert
-		#pragma fragment frag_hard
-		#pragma multi_compile_shadowcollector
-
-		inline float3 computeCameraSpacePosFromDepth(v2f i)
-		{
-			return computeCameraSpacePosFromDepthAndInvProjMat(i);
-		}
 		ENDCG
 	}
 }
@@ -505,46 +363,95 @@ SubShader {
 // Requires SM3 GPU.
 
 Subshader {
-	Tags {"ShadowmapFilter" = "PCF_5x5"}
-	Pass {
-		ZWrite Off ZTest Always Cull Off
+	Tags {"ShadowmapFilter"="PCF_5x5"}
 
-		CGPROGRAM
-		#pragma vertex vert
-		#pragma fragment frag_pcf5x5
-		#pragma multi_compile_shadowcollector
-		#pragma target 3.0
+Pass {
+	ZWrite Off ZTest Always Cull Off
 
-		inline float3 computeCameraSpacePosFromDepth(v2f i)
+	CGPROGRAM
+	#pragma vertex vert
+	#pragma fragment frag_pcf5x5
+	#pragma multi_compile_shadowcollector
+	#pragma target 3.0
+
+	// 3.0 fragment shader
+	fixed4 frag_pcf5x5 (v2f i) : SV_Target
+	{
+		float zdepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
+		// 0..1 linear depth, 0 at near plane, 1 at far plane.
+		float depth = lerp (Linear01Depth(zdepth), zdepth, unity_OrthoParams.w);
+
+		// view position calculation for perspective & ortho cases
+		float3 vposPersp = i.ray * depth;
+		float3 vposOrtho = lerp(i.orthoPosNear, i.orthoPosFar, zdepth);
+		// pick the perspective or ortho position as needed
+		float3 vpos = lerp (vposPersp, vposOrtho, unity_OrthoParams.w);
+
+		// sample the cascade the pixel belongs to
+		float4 wpos = mul (_CameraToWorld, float4(vpos,1));
+		fixed4 cascadeWeights = GET_CASCADE_WEIGHTS (wpos, vpos.z);
+		float4 coord = GET_SHADOW_COORDINATES(wpos, cascadeWeights);
+
+		float2 receiverPlaneDepthBiasCascade0 = 0.0;
+		float2 receiverPlaneDepthBias = 0.0;
+		#if UNITY_USE_RECEIVER_PLANE_BIAS
+			// Reveiver plane depth bias: need to calculate it based on shadow coordinate
+			// as it would be in first cascade; otherwise derivatives
+			// at cascade boundaries will be all wrong. So compute
+			// it from cascade 0 UV, and scale based on which cascade we're in.
+			// 
+			float3 coordCascade0 = getShadowCoord_SingleCascade(wpos);
+			receiverPlaneDepthBiasCascade0 = getReceiverPlaneDepthBias (coordCascade0.xyz);
+			float biasMultiply = dot(cascadeWeights,unity_ShadowCascadeScales);
+
+			receiverPlaneDepthBias = receiverPlaneDepthBiasCascade0 * biasMultiply;
+
+		    // Static depth biasing to make up for incorrect fractional
+		    // sampling on the shadow map grid; from "A Sampling of Shadow Techniques"
+		    // (http://mynameismjp.wordpress.com/2013/09/10/shadow-maps/)
+    		float fractionalSamplingError = 2 * dot(_ShadowMapTexture_TexelSize.xy, abs(receiverPlaneDepthBias));
+    		coord.z -= min(fractionalSamplingError, UNITY_RECEIVER_PLANE_MIN_FRACTIONAL_ERROR);
+		#endif
+
+
+		half shadow = sampleShadowmap_PCF5x5( coord, receiverPlaneDepthBias );
+
+
+		// Blend between shadow cascades if enabled
+		//
+		// Not working yet with split spheres, and no need when 1 cascade
+		#if UNITY_USE_CASCADE_BLENDING && !defined(SHADOWS_SPLIT_SPHERES) && !defined(SHADOWS_SINGLE_CASCADE)
+		half4 z4 = (float4(vpos.z,vpos.z,vpos.z,vpos.z) - _LightSplitsNear) / (_LightSplitsFar-_LightSplitsNear);
+		half alpha = dot (z4 * cascadeWeights, half4(1,1,1,1));
+
+		UNITY_BRANCH
+		if (alpha > 1-UNITY_CASCADE_BLEND_DISTANCE)
 		{
-			return computeCameraSpacePosFromDepthAndVSInfo(i);
+			// get alpha to 0..1 range over the blend distance
+			alpha = (alpha-(1-UNITY_CASCADE_BLEND_DISTANCE)) / UNITY_CASCADE_BLEND_DISTANCE;
+
+			// sample next cascade
+			cascadeWeights = fixed4 (0, cascadeWeights.xyz);
+			coord = GET_SHADOW_COORDINATES(wpos, cascadeWeights);
+
+			#if UNITY_USE_RECEIVER_PLANE_BIAS
+				biasMultiply = dot(cascadeWeights,unity_ShadowCascadeScales);
+				receiverPlaneDepthBias = receiverPlaneDepthBiasCascade0 * biasMultiply;
+	    		fractionalSamplingError = 2 * dot(_ShadowMapTexture_TexelSize.xy, abs(receiverPlaneDepthBias));
+    			coord.z -= min(fractionalSamplingError, UNITY_RECEIVER_PLANE_MIN_FRACTIONAL_ERROR);
+			#endif
+
+			half shadowNextCascade = sampleShadowmap_PCF3x3 (coord, receiverPlaneDepthBias);
+
+			shadow = lerp (shadow, shadowNextCascade, alpha);
 		}
-		ENDCG
+		#endif
+
+		shadow += GET_SHADOW_FADE(wpos, vpos.z);
+		return shadow;
 	}
+	ENDCG
 }
-
-// ----------------------------------------------------------------------------------------
-// Subshader that does PCF 5x5 filtering while collecting shadows.
-// Requires SM3 GPU.
-// This version does inv projection at the PS level, slower and less precise however more general.
-
-Subshader{
-	Tags{ "ShadowmapFilter" = "PCF_5x5_FORCE_INV_PROJECTION_IN_PS" }
-	Pass{
-		ZWrite Off ZTest Always Cull Off
-
-		CGPROGRAM
-		#pragma vertex vert
-		#pragma fragment frag_pcf5x5
-		#pragma multi_compile_shadowcollector
-		#pragma target 3.0
-
-		inline float3 computeCameraSpacePosFromDepth(v2f i)
-		{
-			return computeCameraSpacePosFromDepthAndInvProjMat(i);
-		}
-		ENDCG
-	}
 }
 
 Fallback Off

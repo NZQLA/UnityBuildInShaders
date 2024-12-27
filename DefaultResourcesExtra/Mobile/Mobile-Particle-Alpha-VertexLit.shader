@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 // Simplified VertexLit Blended Particle shader. Differences from regular VertexLit Blended Particle one:
 // - no AlphaTest
 // - no ColorMask
@@ -11,7 +9,7 @@ Properties {
 }
 
 Category {
-	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" "PreviewType"="Plane" }
+	Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
 	Blend SrcAlpha OneMinusSrcAlpha
 	Cull Off ZWrite Off Fog { Color (0,0,0,0) }
 	

@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "Hidden/Nature/Tree Soft Occlusion Leaves Rendertex" {
 	Properties {
 		_Color ("Main Color", Color) = (1,1,1,0)
@@ -17,7 +15,7 @@ Shader "Hidden/Nature/Tree Soft Occlusion Leaves Rendertex" {
 	}
 	SubShader {
 
-		Tags { "Queue" = "AlphaTest" }
+		Tags { "Queue" = "Transparent-99" }
 		Cull Off
 		
 		Pass {

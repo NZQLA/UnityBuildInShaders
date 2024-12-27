@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "UI/Lit/Detail"
 {
 	Properties
@@ -68,13 +66,12 @@ Shader "UI/Lit/Detail"
 				fixed4 color : COLOR;
 				float3 normal : NORMAL;
 				float4 tangent : TANGENT;
-				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 	
 			struct Input
 			{
-				float2 uv_MainTex;
-				float2 uv2_DetailTex;
+				half2 uv_MainTex;
+				half2 uv2_DetailTex;
 				fixed4 color : COLOR;
 				float4 worldPosition;
 			};

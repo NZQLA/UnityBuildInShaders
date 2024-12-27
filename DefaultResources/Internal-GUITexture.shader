@@ -1,21 +1,19 @@
-Shader "GUI/Text Shader" {
-	Properties {
-		_MainTex ("Font Texture", 2D) = "white" {}
-		_Color ("Text Color", Color) = (1,1,1,1)
-	}
+
+Shader "Hidden/Internal-GUITexture" 
+{
+	Properties { _MainTex ("Texture", any) = "" {} } 
 
 	SubShader {
 
-		Tags {
-			"Queue"="Transparent"
-			"IgnoreProjector"="True"
-			"RenderType"="Transparent"
-			"PreviewType"="Plane"
-		}
-		Lighting Off Cull Off ZTest Always ZWrite Off
-		Blend SrcAlpha OneMinusSrcAlpha
-
-		Pass {
+		Tags { "ForceSupported" = "True" "RenderType"="Overlay" } 
+		
+		Lighting Off 
+		Blend SrcAlpha OneMinusSrcAlpha 
+		Cull Off 
+		ZWrite Off 
+		ZTest Always 
+		
+		Pass {	
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
@@ -35,25 +33,25 @@ Shader "GUI/Text Shader" {
 			};
 
 			sampler2D _MainTex;
-			uniform float4 _MainTex_ST;
-			uniform fixed4 _Color;
 
+			uniform float4 _MainTex_ST;
+			
 			v2f vert (appdata_t v)
 			{
 				v2f o;
 				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
-				o.color = v.color * _Color;
+				o.color = v.color;
 				o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
 				return o;
 			}
 
 			fixed4 frag (v2f i) : SV_Target
 			{
-				fixed4 col = i.color;
-				col.a *= tex2D(_MainTex, i.texcoord).a;
-				return col;
+				return 2.0f * tex2D(_MainTex, i.texcoord) * i.color;
 			}
-			ENDCG
+			ENDCG 
 		}
-	}
+	} 
+	
+	Fallback off 
 }

@@ -1,25 +1,21 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-
-Shader "Hidden/Internal-GUITexture" 
+Shader "Hidden/Internal-GUITextureBlit"
 {
-	Properties { _MainTex ("Texture", any) = "" {} } 
+	Properties { _MainTex ("Texture", Any) = "white" {} }
 
 	SubShader {
+		Tags { "ForceSupported" = "True" }
 
-		Tags { "ForceSupported" = "True" "RenderType"="Overlay" } 
-		
 		Lighting Off 
 		Blend SrcAlpha OneMinusSrcAlpha 
 		Cull Off 
 		ZWrite Off 
-		ZTest Always 
-		
-		Pass {	
+		ZTest Always
+
+		Pass {
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma target 2.0
 
 			#include "UnityCG.cginc"
 
@@ -27,38 +23,42 @@ Shader "Hidden/Internal-GUITexture"
 				float4 vertex : POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
-				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct v2f {
 				float4 vertex : SV_POSITION;
 				fixed4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
-				UNITY_VERTEX_OUTPUT_STEREO
+				float2 clipUV : TEXCOORD1;
 			};
 
-			sampler2D _MainTex;
-
 			uniform float4 _MainTex_ST;
-			
+			uniform fixed4 _Color;
+			uniform float4x4 _GUIClipTextureMatrix;
+
 			v2f vert (appdata_t v)
 			{
 				v2f o;
-				UNITY_SETUP_INSTANCE_ID(v);
-				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+				float4 eyePos = mul(UNITY_MATRIX_MV, v.vertex);
+				o.clipUV = mul(_GUIClipTextureMatrix, eyePos);
 				o.color = v.color;
 				o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
 				return o;
 			}
 
+			sampler2D _MainTex;
+			sampler2D _GUIClipTexture;
+
 			fixed4 frag (v2f i) : SV_Target
 			{
-				return 2.0f * tex2D(_MainTex, i.texcoord) * i.color;
+				fixed4 col;
+				col.rgb = tex2D (_MainTex, i.texcoord).rgb * i.color.rgb;
+				col.a = i.color.a * tex2D(_GUIClipTexture, i.clipUV).a;
+				return col;
 			}
-			ENDCG 
+			ENDCG
 		}
-	} 
-	
-	Fallback off 
+	}
+
 }

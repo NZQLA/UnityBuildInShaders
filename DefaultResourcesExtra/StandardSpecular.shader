@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 Shader "Standard (Specular setup)"
 {
 	Properties
@@ -10,13 +8,8 @@ Shader "Standard (Specular setup)"
 		_Cutoff("Alpha Cutoff", Range(0.0, 1.0)) = 0.5
 
 		_Glossiness("Smoothness", Range(0.0, 1.0)) = 0.5
-		_GlossMapScale("Smoothness Factor", Range(0.0, 1.0)) = 1.0
-		[Enum(Specular Alpha,0,Albedo Alpha,1)] _SmoothnessTextureChannel ("Smoothness texture channel", Float) = 0
-
 		_SpecColor("Specular", Color) = (0.2,0.2,0.2)
 		_SpecGlossMap("Specular", 2D) = "white" {}
-		[ToggleOff] _SpecularHighlights("Specular Highlights", Float) = 1.0
-		[ToggleOff] _GlossyReflections("Glossy Reflections", Float) = 1.0
 
 		_BumpScale("Scale", Float) = 1.0
 		_BumpMap("Normal Map", 2D) = "bump" {}
@@ -68,22 +61,20 @@ Shader "Standard (Specular setup)"
 
 			CGPROGRAM
 			#pragma target 3.0
-
+			// TEMPORARY: GLES2.0 temporarily disabled to prevent errors spam on devices without textureCubeLodEXT
+			#pragma exclude_renderers gles
+			
 			// -------------------------------------
-
+					
 			#pragma shader_feature _NORMALMAP
 			#pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
 			#pragma shader_feature _EMISSION
 			#pragma shader_feature _SPECGLOSSMAP
 			#pragma shader_feature ___ _DETAIL_MULX2
-			#pragma shader_feature _ _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-			#pragma shader_feature _ _SPECULARHIGHLIGHTS_OFF
-			#pragma shader_feature _ _GLOSSYREFLECTIONS_OFF
 			#pragma shader_feature _PARALLAXMAP
-
+			
 			#pragma multi_compile_fwdbase
 			#pragma multi_compile_fog
-			#pragma multi_compile_instancing
 
 			#pragma vertex vertBase
 			#pragma fragment fragBase
@@ -104,17 +95,18 @@ Shader "Standard (Specular setup)"
 
 			CGPROGRAM
 			#pragma target 3.0
+			// GLES2.0 temporarily disabled to prevent errors spam on devices without textureCubeLodEXT
+			#pragma exclude_renderers gles
 
 			// -------------------------------------
 
+			
 			#pragma shader_feature _NORMALMAP
 			#pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
 			#pragma shader_feature _SPECGLOSSMAP
-			#pragma shader_feature _ _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-			#pragma shader_feature _ _SPECULARHIGHLIGHTS_OFF
 			#pragma shader_feature ___ _DETAIL_MULX2
 			#pragma shader_feature _PARALLAXMAP
-
+			
 			#pragma multi_compile_fwdadd_fullshadows
 			#pragma multi_compile_fog
 
@@ -129,20 +121,19 @@ Shader "Standard (Specular setup)"
 		Pass {
 			Name "ShadowCaster"
 			Tags { "LightMode" = "ShadowCaster" }
-
+			
 			ZWrite On ZTest LEqual
 
 			CGPROGRAM
 			#pragma target 3.0
-
+			// TEMPORARY: GLES2.0 temporarily disabled to prevent errors spam on devices without textureCubeLodEXT
+			#pragma exclude_renderers gles
+			
 			// -------------------------------------
 
 
 			#pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-			#pragma shader_feature _SPECGLOSSMAP
-			#pragma shader_feature _PARALLAXMAP
 			#pragma multi_compile_shadowcaster
-			#pragma multi_compile_instancing
 
 			#pragma vertex vertShadowCaster
 			#pragma fragment fragShadowCaster
@@ -160,8 +151,9 @@ Shader "Standard (Specular setup)"
 
 			CGPROGRAM
 			#pragma target 3.0
-			#pragma exclude_renderers nomrt
-
+			// TEMPORARY: GLES2.0 temporarily disabled to prevent errors spam on devices without textureCubeLodEXT
+			#pragma exclude_renderers nomrt gles
+			
 
 			// -------------------------------------
 
@@ -169,14 +161,14 @@ Shader "Standard (Specular setup)"
 			#pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
 			#pragma shader_feature _EMISSION
 			#pragma shader_feature _SPECGLOSSMAP
-			#pragma shader_feature _ _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-			#pragma shader_feature _ _SPECULARHIGHLIGHTS_OFF
 			#pragma shader_feature ___ _DETAIL_MULX2
 			#pragma shader_feature _PARALLAXMAP
 
-			#pragma multi_compile_prepassfinal
-			#pragma multi_compile_instancing
-
+			#pragma multi_compile ___ UNITY_HDR_ON
+			#pragma multi_compile LIGHTMAP_OFF LIGHTMAP_ON
+			#pragma multi_compile DIRLIGHTMAP_OFF DIRLIGHTMAP_COMBINED DIRLIGHTMAP_SEPARATE
+			#pragma multi_compile DYNAMICLIGHTMAP_OFF DYNAMICLIGHTMAP_ON
+			
 			#pragma vertex vertDeferred
 			#pragma fragment fragDeferred
 
@@ -201,9 +193,7 @@ Shader "Standard (Specular setup)"
 
 			#pragma shader_feature _EMISSION
 			#pragma shader_feature _SPECGLOSSMAP
-			#pragma shader_feature _ _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
 			#pragma shader_feature ___ _DETAIL_MULX2
-			#pragma shader_feature EDITOR_VISUALIZATION
 
 			#include "UnityStandardMeta.cginc"
 			ENDCG
@@ -232,13 +222,10 @@ Shader "Standard (Specular setup)"
 			#pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
 			#pragma shader_feature _EMISSION 
 			#pragma shader_feature _SPECGLOSSMAP
-			#pragma shader_feature _ _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-			#pragma shader_feature _ _SPECULARHIGHLIGHTS_OFF
-			#pragma shader_feature _ _GLOSSYREFLECTIONS_OFF
 			#pragma shader_feature ___ _DETAIL_MULX2
 			// SM2.0: NOT SUPPORTED shader_feature _PARALLAXMAP
 
-			#pragma skip_variants SHADOWS_SOFT DYNAMICLIGHTMAP_ON DIRLIGHTMAP_COMBINED
+			#pragma skip_variants SHADOWS_SOFT DYNAMICLIGHTMAP_ON DIRLIGHTMAP_COMBINED DIRLIGHTMAP_SEPARATE
 			
 			#pragma multi_compile_fwdbase
 			#pragma multi_compile_fog
@@ -266,8 +253,6 @@ Shader "Standard (Specular setup)"
 			#pragma shader_feature _NORMALMAP
 			#pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
 			#pragma shader_feature _SPECGLOSSMAP
-			#pragma shader_feature _ _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-			#pragma shader_feature _ _SPECULARHIGHLIGHTS_OFF
 			#pragma shader_feature ___ _DETAIL_MULX2
 			// SM2.0: NOT SUPPORTED shader_feature _PARALLAXMAP
 			#pragma skip_variants SHADOWS_SOFT
@@ -293,7 +278,6 @@ Shader "Standard (Specular setup)"
 			#pragma target 2.0
 
 			#pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-			#pragma shader_feature _SPECGLOSSMAP
 			#pragma skip_variants SHADOWS_SOFT
 			#pragma multi_compile_shadowcaster
 
@@ -320,9 +304,7 @@ Shader "Standard (Specular setup)"
 
 			#pragma shader_feature _EMISSION
 			#pragma shader_feature _SPECGLOSSMAP
-			#pragma shader_feature _ _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
 			#pragma shader_feature ___ _DETAIL_MULX2
-			#pragma shader_feature EDITOR_VISUALIZATION
 
 			#include "UnityStandardMeta.cginc"
 			ENDCG

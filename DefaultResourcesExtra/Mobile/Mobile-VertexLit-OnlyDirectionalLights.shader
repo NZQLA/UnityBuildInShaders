@@ -1,5 +1,3 @@
-// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
-
 // Simplified VertexLit shader, optimized for high-poly meshes. Differences from regular VertexLit one:
 // - less per-vertex work compared with Mobile-VertexLit
 // - supports only DIRECTIONAL lights and ambient term, saves some vertex processing power
@@ -21,7 +19,6 @@ Shader "Mobile/VertexLit (Only Directional Lights)" {
 CGPROGRAM
 #pragma vertex vert_surf
 #pragma fragment frag_surf
-#pragma target 2.0
 #pragma multi_compile_fwdbase
 #pragma multi_compile_fog
 #include "HLSLSupport.cginc"
@@ -49,40 +46,37 @@ CGPROGRAM
 		struct v2f_surf {
   float4 pos : SV_POSITION;
   float2 pack0 : TEXCOORD0;
-  #ifndef LIGHTMAP_ON
+  #ifdef LIGHTMAP_OFF
   fixed3 normal : TEXCOORD1;
   #endif
-  #ifdef LIGHTMAP_ON
+  #ifndef LIGHTMAP_OFF
   float2 lmap : TEXCOORD2;
   #endif
-  #ifndef LIGHTMAP_ON
+  #ifdef LIGHTMAP_OFF
   fixed3 vlight : TEXCOORD2;
   #endif
   LIGHTING_COORDS(3,4)
   UNITY_FOG_COORDS(5)
-  UNITY_VERTEX_OUTPUT_STEREO
 };
 float4 _MainTex_ST;
 v2f_surf vert_surf (appdata_full v)
 {
 	v2f_surf o;
-	UNITY_SETUP_INSTANCE_ID(v);
-	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-	o.pos = UnityObjectToClipPos(v.vertex);
+	o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
 	o.pack0.xy = TRANSFORM_TEX(v.texcoord, _MainTex);
-	#ifdef LIGHTMAP_ON
+	#ifndef LIGHTMAP_OFF
 	o.lmap.xy = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
 	#endif
 	float3 worldN = UnityObjectToWorldNormal(v.normal);
-	#ifndef LIGHTMAP_ON
+	#ifdef LIGHTMAP_OFF
 	o.normal = worldN;
 	#endif
-	#ifndef LIGHTMAP_ON
+	#ifdef LIGHTMAP_OFF
 	
 	o.vlight = ShadeSH9 (float4(worldN,1.0));
 	o.vlight += LightingLambertVS (worldN, _WorldSpaceLightPos0.xyz);
 	
-	#endif
+	#endif // LIGHTMAP_OFF
 	TRANSFER_VERTEX_TO_FRAGMENT(o);
 	UNITY_TRANSFER_FOG(o,o.pos);
 	return o;
@@ -97,7 +91,7 @@ fixed4 frag_surf (v2f_surf IN) : SV_Target
 	o.Specular = 0.0;
 	o.Alpha = 0.0;
 	o.Gloss = 0.0;
-	#ifndef LIGHTMAP_ON
+	#ifdef LIGHTMAP_OFF
 	o.Normal = IN.normal;
 	#else
 	o.Normal = 0;
@@ -105,10 +99,10 @@ fixed4 frag_surf (v2f_surf IN) : SV_Target
 	surf (surfIN, o);
 	fixed atten = LIGHT_ATTENUATION(IN);
 	fixed4 c = 0;
-	#ifndef LIGHTMAP_ON
+	#ifdef LIGHTMAP_OFF
 	c.rgb = o.Albedo * IN.vlight * atten;
-	#endif
-	#ifdef LIGHTMAP_ON
+	#endif // LIGHTMAP_OFF
+	#ifndef LIGHTMAP_OFF
 	fixed3 lm = DecodeLightmap (UNITY_SAMPLE_TEX2D(unity_Lightmap, IN.lmap.xy));
 	#ifdef SHADOWS_SCREEN
 	c.rgb += o.Albedo * min(lm, atten*2);
@@ -116,7 +110,7 @@ fixed4 frag_surf (v2f_surf IN) : SV_Target
 	c.rgb += o.Albedo * lm;
 	#endif
 	c.a = o.Alpha;
-	#endif
+	#endif // !LIGHTMAP_OFF
 	UNITY_APPLY_FOG(IN.fogCoord, c);
 	UNITY_OPAQUE_ALPHA(c.a);
 	return c;
