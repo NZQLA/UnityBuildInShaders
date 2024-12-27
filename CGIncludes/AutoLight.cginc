@@ -6,6 +6,12 @@
 #include "HLSLSupport.cginc"
 #include "UnityShadowLibrary.cginc"
 
+#define unityShadowCoord float
+#define unityShadowCoord2 float2
+#define unityShadowCoord3 float3
+#define unityShadowCoord4 float4
+#define unityShadowCoord4x4 float4x4
+
 // ----------------
 //  Shadow helpers
 // ----------------
@@ -128,8 +134,8 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
 #       define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(0, worldPos, a._ShadowCoord)
 #   endif
 #else
+#   define UNITY_SHADOW_COORDS(idx1) unityShadowCoord2 _ShadowCoord : TEXCOORD##idx1;
 #   if defined(SHADOWS_SHADOWMASK)
-#       define UNITY_SHADOW_COORDS(idx1) unityShadowCoord2 _ShadowCoord : TEXCOORD##idx1;
 #       define UNITY_TRANSFER_SHADOW(a, coord) a._ShadowCoord = coord * unity_LightmapST.xy + unity_LightmapST.zw;
 #       if (defined(SHADOWS_DEPTH) || defined(SHADOWS_SCREEN) || defined(SHADOWS_CUBE) || UNITY_LIGHT_PROBE_PROXY_VOLUME)
 #           define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(a._ShadowCoord, worldPos, 0)
@@ -137,7 +143,6 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
 #           define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(a._ShadowCoord, 0, 0)
 #       endif
 #   else
-#       define UNITY_SHADOW_COORDS(idx1) SHADOW_COORDS(idx1)
 #       define UNITY_TRANSFER_SHADOW(a, coord)
 #       if (defined(SHADOWS_DEPTH) || defined(SHADOWS_SCREEN) || defined(SHADOWS_CUBE))
 #           define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(0, worldPos, 0)
@@ -152,7 +157,7 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
 #endif
 
 #ifdef POINT
-sampler2D_float _LightTexture0;
+sampler2D _LightTexture0;
 unityShadowCoord4x4 unity_WorldToLight;
 #define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
     unityShadowCoord3 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)).xyz; \
@@ -161,9 +166,9 @@ unityShadowCoord4x4 unity_WorldToLight;
 #endif
 
 #ifdef SPOT
-sampler2D_float _LightTexture0;
+sampler2D _LightTexture0;
 unityShadowCoord4x4 unity_WorldToLight;
-sampler2D_float _LightTextureB0;
+sampler2D _LightTextureB0;
 inline fixed UnitySpotCookie(unityShadowCoord4 LightCoord)
 {
     return tex2D(_LightTexture0, LightCoord.xy / LightCoord.w + 0.5).w;
@@ -183,9 +188,9 @@ inline fixed UnitySpotAttenuate(unityShadowCoord3 LightCoord)
 #endif
 
 #ifdef POINT_COOKIE
-samplerCUBE_float _LightTexture0;
+samplerCUBE _LightTexture0;
 unityShadowCoord4x4 unity_WorldToLight;
-sampler2D_float _LightTextureB0;
+sampler2D _LightTextureB0;
 #define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
     unityShadowCoord3 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)).xyz; \
     fixed shadow = UNITY_SHADOW_ATTENUATION(input, worldPos); \
@@ -193,7 +198,7 @@ sampler2D_float _LightTextureB0;
 #endif
 
 #ifdef DIRECTIONAL_COOKIE
-sampler2D_float _LightTexture0;
+sampler2D _LightTexture0;
 unityShadowCoord4x4 unity_WorldToLight;
 #define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
     unityShadowCoord2 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)).xy; \

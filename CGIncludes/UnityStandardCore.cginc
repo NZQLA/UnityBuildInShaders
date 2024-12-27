@@ -4,8 +4,6 @@
 #define UNITY_STANDARD_CORE_INCLUDED
 
 #include "UnityCG.cginc"
-#include "UnityShaderVariables.cginc"
-#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityStandardInput.cginc"
 #include "UnityPBSLighting.cginc"
@@ -208,24 +206,6 @@ inline FragmentCommonData SpecularSetup (float4 i_tex)
     return o;
 }
 
-inline FragmentCommonData RoughnessSetup(float4 i_tex)
-{
-    half2 metallicGloss = MetallicRough(i_tex.xy);
-    half metallic = metallicGloss.x;
-    half smoothness = metallicGloss.y; // this is 1 minus the square root of real roughness m.
-
-    half oneMinusReflectivity;
-    half3 specColor;
-    half3 diffColor = DiffuseAndSpecularFromMetallic(Albedo(i_tex), metallic, /*out*/ specColor, /*out*/ oneMinusReflectivity);
-
-    FragmentCommonData o = (FragmentCommonData)0;
-    o.diffColor = diffColor;
-    o.specColor = specColor;
-    o.oneMinusReflectivity = oneMinusReflectivity;
-    o.smoothness = smoothness;
-    return o;
-}
-
 inline FragmentCommonData MetallicSetup (float4 i_tex)
 {
     half2 metallicGloss = MetallicGloss(i_tex.xy);
@@ -244,8 +224,7 @@ inline FragmentCommonData MetallicSetup (float4 i_tex)
     return o;
 }
 
-// parallax transformed texcoord is used to sample occlusion
-inline FragmentCommonData FragmentSetup (inout float4 i_tex, float3 i_eyeVec, half3 i_viewDirForParallax, float4 tangentToWorld[3], float3 i_posWorld)
+inline FragmentCommonData FragmentSetup (float4 i_tex, float3 i_eyeVec, half3 i_viewDirForParallax, float4 tangentToWorld[3], float3 i_posWorld)
 {
     i_tex = Parallax(i_tex, i_viewDirForParallax);
 
@@ -357,7 +336,7 @@ inline half4 VertexGIForward(VertexInput v, float3 posWorld, half3 normalWorld)
 
 struct VertexOutputForwardBase
 {
-    UNITY_POSITION(pos);
+    float4 pos                            : SV_POSITION;
     float4 tex                            : TEXCOORD0;
     float3 eyeVec                         : TEXCOORD1;
     float4 tangentToWorldAndPackedData[3] : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:viewDirForParallax or worldPos]
@@ -429,8 +408,6 @@ VertexOutputForwardBase vertForwardBase (VertexInput v)
 
 half4 fragForwardBaseInternal (VertexOutputForwardBase i)
 {
-    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
-
     FRAGMENT_SETUP(s)
 
     UNITY_SETUP_INSTANCE_ID(i);
@@ -459,7 +436,7 @@ half4 fragForwardBase (VertexOutputForwardBase i) : SV_Target   // backward comp
 
 struct VertexOutputForwardAdd
 {
-    UNITY_POSITION(pos);
+    float4 pos                          : SV_POSITION;
     float4 tex                          : TEXCOORD0;
     float3 eyeVec                       : TEXCOORD1;
     float4 tangentToWorldAndLightDir[3] : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:lightDir]
@@ -523,10 +500,6 @@ VertexOutputForwardAdd vertForwardAdd (VertexInput v)
 
 half4 fragForwardAddInternal (VertexOutputForwardAdd i)
 {
-    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
-
-    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-
     FRAGMENT_SETUP_FWDADD(s)
 
     UNITY_LIGHT_ATTENUATION(atten, i, s.posWorld)
@@ -549,7 +522,7 @@ half4 fragForwardAdd (VertexOutputForwardAdd i) : SV_Target     // backward comp
 
 struct VertexOutputDeferred
 {
-    UNITY_POSITION(pos);
+    float4 pos                            : SV_POSITION;
     float4 tex                            : TEXCOORD0;
     float3 eyeVec                         : TEXCOORD1;
     float4 tangentToWorldAndPackedData[3] : TEXCOORD2;    // [3x3:tangentToWorld | 1x3:viewDirForParallax or worldPos]
@@ -640,8 +613,6 @@ void fragDeferred (
         #endif
         return;
     #endif
-
-    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
 
     FRAGMENT_SETUP(s)
 

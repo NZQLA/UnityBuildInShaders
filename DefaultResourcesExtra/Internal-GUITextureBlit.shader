@@ -3,86 +3,69 @@
 
 Shader "Hidden/Internal-GUITextureBlit"
 {
-    Properties { _MainTex ("Texture", Any) = "white" {} }
+	Properties { _MainTex ("Texture", Any) = "white" {} }
 
-    CGINCLUDE
-    #pragma vertex vert
-    #pragma fragment frag
-    #pragma target 2.0
+	SubShader {
+		Tags { "ForceSupported" = "True" }
 
-    #include "UnityCG.cginc"
+		Lighting Off 
+		Blend SrcAlpha OneMinusSrcAlpha 
+		Cull Off 
+		ZWrite Off 
+		ZTest Always
 
-    struct appdata_t {
-        float4 vertex : POSITION;
-        fixed4 color : COLOR;
-        float2 texcoord : TEXCOORD0;
-        UNITY_VERTEX_INPUT_INSTANCE_ID
-    };
+		Pass {
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma target 2.0
 
-    struct v2f {
-        float4 vertex : SV_POSITION;
-        fixed4 color : COLOR;
-        float2 texcoord : TEXCOORD0;
-        float2 clipUV : TEXCOORD1;
-        UNITY_VERTEX_OUTPUT_STEREO
-    };
+			#include "UnityCG.cginc"
 
-    uniform float4 _MainTex_ST;
-    uniform fixed4 _Color;
-    uniform float4x4 unity_GUIClipTextureMatrix;
+			struct appdata_t {
+				float4 vertex : POSITION;
+				fixed4 color : COLOR;
+				float2 texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
 
-    v2f vert (appdata_t v)
-    {
-        v2f o;
-        UNITY_SETUP_INSTANCE_ID(v);
-        UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-        o.vertex = UnityObjectToClipPos(v.vertex);
-        float3 eyePos = UnityObjectToViewPos(v.vertex);
-        o.clipUV = mul(unity_GUIClipTextureMatrix, float4(eyePos.xy, 0, 1.0));
-        o.color = v.color;
-        o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
-        return o;
-    }
+			struct v2f {
+				float4 vertex : SV_POSITION;
+				fixed4 color : COLOR;
+				float2 texcoord : TEXCOORD0;
+				float2 clipUV : TEXCOORD1;
+				UNITY_VERTEX_OUTPUT_STEREO
+			};
 
-    sampler2D _MainTex;
-    sampler2D _GUIClipTexture;
+			uniform float4 _MainTex_ST;
+			uniform fixed4 _Color;
+			uniform float4x4 unity_GUIClipTextureMatrix;
 
-    fixed4 frag (v2f i) : SV_Target
-    {
-        fixed4 col;
-        col.rgb = tex2D (_MainTex, i.texcoord).rgb * i.color.rgb;
-        col.a = i.color.a * tex2D(_GUIClipTexture, i.clipUV).a;
-        return col;
-    }
-    ENDCG
+			v2f vert (appdata_t v)
+			{
+				v2f o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				float3 eyePos = UnityObjectToViewPos(v.vertex);
+				o.clipUV = mul(unity_GUIClipTextureMatrix, float4(eyePos.xy, 0, 1.0));
+				o.color = v.color;
+				o.texcoord = TRANSFORM_TEX(v.texcoord,_MainTex);
+				return o;
+			}
 
-    SubShader {
-        Tags { "ForceSupported" = "True" }
+			sampler2D _MainTex;
+			sampler2D _GUIClipTexture;
 
-        Lighting Off
-        Blend SrcAlpha OneMinusSrcAlpha, One One
-        Cull Off
-        ZWrite Off
-        ZTest Always
+			fixed4 frag (v2f i) : SV_Target
+			{
+				fixed4 col;
+				col.rgb = tex2D (_MainTex, i.texcoord).rgb * i.color.rgb;
+				col.a = i.color.a * tex2D(_GUIClipTexture, i.clipUV).a;
+				return col;
+			}
+			ENDCG
+		}
+	}
 
-        Pass {
-            CGPROGRAM
-            ENDCG
-        }
-    }
-
-    SubShader {
-        Tags { "ForceSupported" = "True" }
-
-        Lighting Off
-        Blend SrcAlpha OneMinusSrcAlpha
-        Cull Off
-        ZWrite Off
-        ZTest Always
-
-        Pass {
-            CGPROGRAM
-            ENDCG
-        }
-    }
 }

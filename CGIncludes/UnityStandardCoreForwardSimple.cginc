@@ -14,7 +14,7 @@
 
 struct VertexOutputBaseSimple
 {
-    UNITY_POSITION(pos);
+    float4 pos                          : SV_POSITION;
     float4 tex                          : TEXCOORD0;
     half4 eyeVec                        : TEXCOORD1; // w: grazingTerm
 
@@ -46,11 +46,6 @@ half MetallicSetup_Reflectivity()
 half SpecularSetup_Reflectivity()
 {
     return SpecularStrength(_SpecColor.rgb);
-}
-
-half RoughnessSetup_Reflectivity()
-{
-    return MetallicSetup_Reflectivity();
 }
 
 #define JOIN2(a, b) a##b
@@ -197,8 +192,6 @@ half3 BRDF3DirectSimple(half3 diffColor, half3 specColor, half smoothness, half 
 
 half4 fragForwardBaseSimpleInternal (VertexOutputBaseSimple i)
 {
-    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
-
     FragmentCommonData s = FragmentSetupSimple(i);
 
     UnityLight mainLight = MainLightSimple(i, s);
@@ -236,7 +229,7 @@ half4 fragForwardBaseSimple (VertexOutputBaseSimple i) : SV_Target  // backward 
 
 struct VertexOutputForwardAddSimple
 {
-    UNITY_POSITION(pos);
+    float4 pos                          : SV_POSITION;
     float4 tex                          : TEXCOORD0;
     float3 posWorld                     : TEXCOORD1;
 
@@ -349,8 +342,6 @@ half3 LightSpaceNormal(VertexOutputForwardAddSimple i, FragmentCommonData s)
 
 half4 fragForwardAddSimpleInternal (VertexOutputForwardAddSimple i)
 {
-    UNITY_APPLY_DITHER_CROSSFADE(i.pos.xy);
-
     FragmentCommonData s = FragmentSetupSimpleAdd(i);
 
     half3 c = BRDF3DirectSimple(s.diffColor, s.specColor, s.smoothness, dot(REFLECTVEC_FOR_SPECULAR(i, s), i.lightDir));

@@ -22,6 +22,7 @@ struct Input
     #ifdef GEOM_TYPE_BRANCH_DETAIL
         half3 interpolator2;
     #endif
+    UNITY_DITHER_CROSSFADE_COORDS
 };
 
 // Define uniforms
@@ -76,11 +77,13 @@ void SpeedTreeVert(inout SpeedTreeVB IN, out Input OUT)
     #endif
 
     OffsetSpeedTreeVertex(IN, unity_LODFade.x);
+
+    UNITY_TRANSFER_DITHER_CROSSFADE(OUT, IN.vertex)
 }
 
 // Fragment processing
 
-#if defined(EFFECT_BUMP)
+#if defined(EFFECT_BUMP) && !defined(LIGHTMAP_ON)
     #define SPEEDTREE_DATA_NORMAL           fixed3 Normal;
     #define SPEEDTREE_COPY_NORMAL(to, from) to.Normal = from.Normal;
 #else
@@ -109,6 +112,8 @@ void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
         clip(OUT.Alpha - _Cutoff);
     #endif
 
+    UNITY_APPLY_DITHER_CROSSFADE(IN)
+
     #ifdef GEOM_TYPE_BRANCH_DETAIL
         half4 detailColor = tex2D(_DetailTex, IN.Detail.xy);
         diffuseColor.rgb = lerp(diffuseColor.rgb, detailColor.rgb, IN.Detail.z < 2.0f ? saturate(IN.Detail.z) : detailColor.a);
@@ -127,15 +132,11 @@ void SpeedTreeFrag(Input IN, out SpeedTreeFragOut OUT)
 
     OUT.Albedo = diffuseColor.rgb * IN.color.rgb;
 
-    #if defined(EFFECT_BUMP)
-        #if defined(LIGHTMAP_ON)
-            OUT.Normal = fixed3(0,0,1);
-        #else
-            OUT.Normal = UnpackNormal(tex2D(_BumpMap, IN.mainTexUV));
-            #ifdef GEOM_TYPE_BRANCH_DETAIL
-                half3 detailNormal = UnpackNormal(tex2D(_BumpMap, IN.Detail.xy));
-                OUT.Normal = lerp(OUT.Normal, detailNormal, IN.Detail.z < 2.0f ? saturate(IN.Detail.z) : detailColor.a);
-            #endif
+    #if defined(EFFECT_BUMP) && !defined(LIGHTMAP_ON)
+        OUT.Normal = UnpackNormal(tex2D(_BumpMap, IN.mainTexUV));
+        #ifdef GEOM_TYPE_BRANCH_DETAIL
+            half3 detailNormal = UnpackNormal(tex2D(_BumpMap, IN.Detail.xy));
+            OUT.Normal = lerp(OUT.Normal, detailNormal, IN.Detail.z < 2.0f ? saturate(IN.Detail.z) : detailColor.a);
         #endif
     #endif
 }

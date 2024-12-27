@@ -41,10 +41,6 @@ uniform half _AlbedoMaxLuminance = 1.0;
 uniform half _AlbedoHueTolerance = 0.1;
 uniform half _AlbedoSaturationTolerance = 0.1;
 
-uniform half4 unity_MaterialValidateLowColor = half4(1.0f, 0.0f, 0.0f, 0.0f);
-uniform half4 unity_MaterialValidateHighColor = half4(0.0f, 0.0f, 1.0f, 0.0f);
-uniform half4 unity_MaterialValidatePureMetalColor = half4(1.0f, 1.0f, 0.0f, 0.0f);
-
 // Define bounds value in linear RGB for fresnel0 values
 static const float dieletricMin = 0.02;
 static const float dieletricMax = 0.07;
@@ -123,7 +119,7 @@ half4 UnityMeta_pbrAlbedo(UnityMetaInput IN)
         SpecularColor = GammaToLinearSpace(SpecularColor);
     }
 
-    half3 unTouched = LinearRgbToLuminance(baseColor).xxx; // if no errors, leave color as it was in render
+    half3 unTouched = baseColor; // if no errors, leave color as it was in render
 
     bool isMetal = dot(SpecularColor, float3(0.3333,0.3333,0.3333)) >= conductorMin;
     // When checking full range we do not take the luminance but the mean because often in game blue color are highlight as too low whereas this is what we are looking for.
@@ -131,35 +127,16 @@ half4 UnityMeta_pbrAlbedo(UnityMetaInput IN)
 
      // Check if we are pure metal with black albedo
     if (_CheckPureMetal && isMetal && value != 0.0)
-        return unity_MaterialValidatePureMetalColor;
+        return half4(1.0, 1.0, 0, 1);
 
     if (_CheckAlbedo == 0)
     {
-        // If we have a metallic object, don't complain about low albedo
-        if (!isMetal && value < albedoMin)
-        {
-            return unity_MaterialValidateLowColor;
-        }
-        else if (value > albedoMax)
-        {
-            return unity_MaterialValidateHighColor;
-        }
-        else
-        {
-            return half4(unTouched, 0);
-        }
+        // If we have a mettalic object, don't complain about low albedo
+        return ((isMetal || albedoMin <= value) && value <= albedoMax) ? half4(unTouched, 0) : half4(1.0, 0, 0, 1);
     }
     else
     {
-        if (_AlbedoMinLuminance > value)
-        {
-             return unity_MaterialValidateLowColor;
-        }
-        else if (_AlbedoMaxLuminance < value)
-        {
-             return unity_MaterialValidateHighColor;
-        }
-        else
+        if (_AlbedoMinLuminance <= value && value <= _AlbedoMaxLuminance)
         {
             half3 hsv = UnityMeta_RGBToHSV(IN.Albedo);
             half hue = hsv.r;
@@ -169,18 +146,20 @@ half4 UnityMeta_pbrAlbedo(UnityMetaInput IN)
             half compHue = compHSV.r;
             half compSat = compHSV.g;
 
-            if ((compSat - _AlbedoSaturationTolerance > sat) || ((compHue - _AlbedoHueTolerance > hue) && (compHue - _AlbedoHueTolerance + 1.0 > hue)))
-            {
-                return unity_MaterialValidateLowColor;
-            }
-            else if ((sat > compSat + _AlbedoSaturationTolerance) || ((hue > compHue + _AlbedoHueTolerance) && (hue > compHue + _AlbedoHueTolerance - 1.0)))
-            {
-                return unity_MaterialValidateHighColor;
-            }
-            else
+            if ((compSat - _AlbedoSaturationTolerance < sat && sat < compSat + _AlbedoSaturationTolerance) &&
+                (compHue - _AlbedoHueTolerance < hue || compHue - _AlbedoHueTolerance + 1.0 < hue) &&
+                (hue < compHue + _AlbedoHueTolerance || hue < compHue + _AlbedoHueTolerance - 1.0))
             {
                 return half4(unTouched, 0);
             }
+            else
+            {
+                return half4(1.0, 0, 0, 1);
+            }
+        }
+        else
+        {
+            return half4(1.0, 0, 0, 1);
         }
     }
 
@@ -190,8 +169,10 @@ half4 UnityMeta_pbrAlbedo(UnityMetaInput IN)
 // Pass 1 - Metal Specular
 half4 UnityMeta_pbrMetalspec(UnityMetaInput IN)
 {
+    half4 unTouched = half4(IN.Albedo, 0); //tex2D(_MainTex, i.uv); // if no errors, leave color as it was in render
+
     half3 SpecularColor = IN.SpecularColor;
-    half4 baseColor = half4(IN.Albedo, 0);
+    half4 baseColor = unTouched;
 
     if (IsGammaSpace())
     {
@@ -201,24 +182,22 @@ half4 UnityMeta_pbrMetalspec(UnityMetaInput IN)
 
     // Take the mean of three channel, works ok.
     half value = dot(SpecularColor, half3(0.3333,0.3333,0.3333));
-    bool isMetal = value >= conductorMin;
 
-    half4 outColor = half4(LinearRgbToLuminance(baseColor.xyz).xxx, 1.0f);
+    half4 outColor = half4(1.0, 0, 0, 1);
 
-    if (value < conductorMin)
+    if ((dieletricMin <= value && value <= dieletricMax) || (gemsMin <= value && value <= gemsMax))
+    //if (dieletricMin <= value && value <= dieletricMax)
     {
-         outColor = unity_MaterialValidateLowColor;
+        outColor = unTouched;
     }
-    else if (value > conductorMax)
+    else if (conductorMin <= value && value <= conductorMax)
     {
-        outColor = unity_MaterialValidateHighColor;
-    }
-    else if (isMetal)
-    {
-         // If we are here we supposed the users want to have a metal, so check if we have a pure metal (black albedo) or not
+        outColor = unTouched;
+
+        // If we are here we supposed the users want to have a metal, so check if we have a pure metal (black albedo) or not
         // if it is not a pure metal, highlight it
         if (_CheckPureMetal)
-            outColor = dot(baseColor.xyz, half3(1,1,1)) == 0 ? outColor : unity_MaterialValidatePureMetalColor;
+            outColor = dot(baseColor.xyz, half3(1,1,1)) == 0 ? outColor : half4(1.0, 1.0, 0, 1);
     }
 
     return outColor;
@@ -269,9 +248,9 @@ half4 UnityMetaFragment (UnityMetaInput IN)
         if (unity_UseLinearSpace)
             emission = IN.Emission;
         else
-            emission = GammaToLinearSpace(IN.Emission);
+            emission = GammaToLinearSpace (IN.Emission);
 
-        res = half4(emission, 1.0);
+        res = UnityEncodeRGBM(emission, EMISSIVE_RGBM_SCALE);
     }
     #else
     if ( unity_VisualizationMode == PBR_VALIDATION_ALBEDO )
